@@ -1,0 +1,52 @@
+{
+  "single_project_calculations": [
+    {
+      "test_id": "SINGLE-001",
+      "description": "Standard Case: Signed project",
+      "inputs": { "stage": "Signed", "probability": 0.95, "duration": 10, "resources": {"DS": 2} },
+      "expected": { "ds_weeks": 19.0 }
+    },
+    {
+      "test_id": "SINGLE-002",
+      "description": "Edge Case: 0% Probability",
+      "inputs": { "stage": "Frontier", "probability": 0.0, "duration": 12, "resources": {"DS": 5} },
+      "expected": { "ds_weeks": 0.0 }
+    },
+    {
+      "test_id": "SINGLE-004",
+      "description": "Fractional: Close to Signing",
+      "inputs": { "stage": "Close to Signing", "probability": 0.70, "duration": 8, "resources": {"DS": 3} },
+      "expected": { "ds_weeks": 16.8 }
+    }
+  ],
+  "portfolio_scenarios": [
+    {
+      "test_id": "PORT-001",
+      "description": "Mixed Portfolio",
+      "inputs": [
+        { "id": "P1", "stage": "Signed", "prob": 0.95, "dur": 10, "DS": 2 },
+        { "id": "P2", "stage": "Close", "prob": 0.70, "dur": 10, "DS": 2 },
+        { "id": "P3", "stage": "Interested", "prob": 0.40, "dur": 10, "DS": 2 },
+        { "id": "P4", "stage": "Frontier", "prob": 0.15, "dur": 10, "DS": 2 }
+      ],
+      "expected": {
+        "committed": 20.0,
+        "high_confidence": 40.0,
+        "expected_case": 44.0,
+        "full_pipeline": 80.0
+      }
+    }
+  ],
+  "utilization": [
+    {
+      "test_id": "UTIL-001",
+      "inputs": { "scenario_total": 520, "capacity_count": 15, "annual_weeks": 52 },
+      "expected_pct": 66.67
+    },
+    {
+      "test_id": "UTIL-003",
+      "inputs": { "scenario_total": 1000, "capacity_count": 10, "annual_weeks": 52 },
+      "expected_pct": 192.31
+    }
+  ]
+}
