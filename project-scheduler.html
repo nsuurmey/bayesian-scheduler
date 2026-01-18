@@ -1,0 +1,1819 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Project Scheduling Toolkit</title>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/recharts@2.5.0/dist/Recharts.js"></script>
+    <style>
+        .dragging {
+            opacity: 0.5;
+        }
+        .drag-over {
+            background-color: rgba(59, 130, 246, 0.1);
+        }
+        .timeline-bar {
+            cursor: move;
+            transition: transform 0.2s;
+        }
+        .timeline-bar:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .modal-backdrop {
+            background-color: rgba(0, 0, 0, 0.5);
+        }
+        .table-container {
+            max-height: calc(100vh - 250px);
+            overflow-y: auto;
+        }
+        .sticky-header {
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            background: white;
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useReducer, createContext, useContext, useCallback, useMemo } = React;
+        const { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, BarChart, Bar } = Recharts;
+
+        // UUID generator
+        const generateId = () => {
+            return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+                const r = Math.random() * 16 | 0;
+                const v = c === 'x' ? r : (r & 0x3 | 0x8);
+                return v.toString(16);
+            });
+        };
+
+        // Initial state
+        const initialState = {
+            settings: {
+                capacity: {
+                    dataScientists: 15,
+                    geoscientists: 8,
+                    projectManagers: 3
+                },
+                defaultProbabilities: {
+                    signed: 95,
+                    closeToSigning: 70,
+                    interested: 40,
+                    frontier: 15
+                }
+            },
+            projects: [],
+            ui: {
+                activeTab: 'list',
+                filters: {
+                    search: '',
+                    stages: [],
+                    okrs: [],
+                    sources: [],
+                    scheduled: null
+                },
+                selectedProjectId: null,
+                modalOpen: null,
+                timelineGroupBy: 'stage',
+                timelineZoom: 'year'
+            }
+        };
+
+        // Sample data
+        const sampleProjects = [
+            {
+                id: generateId(),
+                name: "Alpha Basin Analysis",
+                sponsor: "John Smith",
+                description: "Comprehensive geological analysis of alpha basin region",
+                okr: "Projects",
+                source: "External",
+                stage: "Signed",
+                probability: 95,
+                impact: "High",
+                effort: "L",
+                durationWeeks: 8,
+                resources: { dataScientists: 2, geoscientists: 3, projectManagers: 1 },
+                startWeek: 1,
+                dependencies: [],
+                observations: {
+                    positive: [
+                        { text: "Strong executive sponsor support", likelihood: "High", timestamp: new Date().toISOString() }
+                    ],
+                    negative: []
+                },
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString()
+            },
+            {
+                id: generateId(),
+                name: "ML Pipeline Upgrade",
+                sponsor: "Sarah Johnson",
+                description: "Modernize machine learning infrastructure",
+                okr: "Innovation",
+                source: "Internal",
+                stage: "Signed",
+                probability: 95,
+                impact: "High",
+                effort: "M",
+                durationWeeks: 6,
+                resources: { dataScientists: 4, geoscientists: 0, projectManagers: 1 },
+                startWeek: 3,
+                dependencies: [],
+                observations: {
+                    positive: [
+                        { text: "Aligns with 2025 strategy", likelihood: "High", timestamp: new Date().toISOString() }
+                    ],
+                    negative: []
+                },
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString()
+            },
+            {
+                id: generateId(),
+                name: "Client X Prospect Study",
+                sponsor: "Mike Davis",
+                description: "Feasibility study for prospective client",
+                okr: "Revenue",
+                source: "External",
+                stage: "Close to Signing",
+                probability: 70,
+                impact: "Medium",
+                effort: "L",
+                durationWeeks: 12,
+                resources: { dataScientists: 3, geoscientists: 2, projectManagers: 1 },
+                startWeek: 10,
+                dependencies: [],
+                observations: {
+                    positive: [],
+                    negative: [
+                        { text: "Budget concerns raised in Q4", likelihood: "Medium", timestamp: new Date().toISOString() }
+                    ]
+                },
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString()
+            },
+            {
+                id: generateId(),
+                name: "Internal Tool Modernization",
+                sponsor: "Lisa Chen",
+                description: "Update internal data processing tools",
+                okr: "Innovation",
+                source: "Internal",
+                stage: "Interested",
+                probability: 40,
+                impact: "Medium",
+                effort: "M",
+                durationWeeks: 4,
+                resources: { dataScientists: 2, geoscientists: 0, projectManagers: 0 },
+                startWeek: null,
+                dependencies: [],
+                observations: {
+                    positive: [],
+                    negative: []
+                },
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString()
+            },
+            {
+                id: generateId(),
+                name: "New Market Exploration",
+                sponsor: "Robert Taylor",
+                description: "Explore opportunities in emerging markets",
+                okr: "Revenue",
+                source: "External",
+                stage: "Frontier",
+                probability: 15,
+                impact: "High",
+                effort: "L",
+                durationWeeks: 16,
+                resources: { dataScientists: 2, geoscientists: 4, projectManagers: 1 },
+                startWeek: null,
+                dependencies: [],
+                observations: {
+                    positive: [
+                        { text: "Early conversations very positive", likelihood: "Low", timestamp: new Date().toISOString() }
+                    ],
+                    negative: [
+                        { text: "Unclear timeline and scope", likelihood: "High", timestamp: new Date().toISOString() }
+                    ]
+                },
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString()
+            },
+            {
+                id: generateId(),
+                name: "Seismic Data Processing",
+                sponsor: "Emma Wilson",
+                description: "Advanced seismic data analysis project",
+                okr: "Projects",
+                source: "External",
+                stage: "Signed",
+                probability: 95,
+                impact: "High",
+                effort: "L",
+                durationWeeks: 10,
+                resources: { dataScientists: 3, geoscientists: 4, projectManagers: 1 },
+                startWeek: 15,
+                dependencies: [],
+                observations: {
+                    positive: [],
+                    negative: []
+                },
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString()
+            },
+            {
+                id: generateId(),
+                name: "Predictive Maintenance AI",
+                sponsor: "David Brown",
+                description: "AI model for equipment predictive maintenance",
+                okr: "Innovation",
+                source: "Internal",
+                stage: "Close to Signing",
+                probability: 70,
+                impact: "Medium",
+                effort: "M",
+                durationWeeks: 8,
+                resources: { dataScientists: 3, geoscientists: 0, projectManagers: 1 },
+                startWeek: null,
+                dependencies: [],
+                observations: {
+                    positive: [],
+                    negative: []
+                },
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString()
+            },
+            {
+                id: generateId(),
+                name: "Regional Resource Assessment",
+                sponsor: "Jennifer Martinez",
+                description: "Comprehensive resource evaluation for key region",
+                okr: "Projects",
+                source: "External",
+                stage: "Interested",
+                probability: 40,
+                impact: "High",
+                effort: "L",
+                durationWeeks: 14,
+                resources: { dataScientists: 2, geoscientists: 5, projectManagers: 1 },
+                startWeek: null,
+                dependencies: [],
+                observations: {
+                    positive: [],
+                    negative: []
+                },
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString()
+            },
+            {
+                id: generateId(),
+                name: "Data Visualization Platform",
+                sponsor: "Chris Anderson",
+                description: "New platform for interactive data visualization",
+                okr: "Innovation",
+                source: "Internal",
+                stage: "Signed",
+                probability: 95,
+                impact: "Medium",
+                effort: "M",
+                durationWeeks: 6,
+                resources: { dataScientists: 3, geoscientists: 0, projectManagers: 0 },
+                startWeek: 25,
+                dependencies: [],
+                observations: {
+                    positive: [],
+                    negative: []
+                },
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString()
+            },
+            {
+                id: generateId(),
+                name: "Offshore Drilling Analysis",
+                sponsor: "Patricia Lee",
+                description: "Risk analysis for offshore drilling operations",
+                okr: "Revenue",
+                source: "External",
+                stage: "Frontier",
+                probability: 15,
+                impact: "High",
+                effort: "L",
+                durationWeeks: 12,
+                resources: { dataScientists: 2, geoscientists: 3, projectManagers: 1 },
+                startWeek: null,
+                dependencies: [],
+                observations: {
+                    positive: [],
+                    negative: []
+                },
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString()
+            }
+        ];
+
+        // Context
+        const AppContext = createContext();
+
+        // Reducer
+        const appReducer = (state, action) => {
+            switch (action.type) {
+                case 'LOAD_STATE':
+                    return action.payload;
+                case 'UPDATE_SETTINGS':
+                    return { ...state, settings: { ...state.settings, ...action.payload } };
+                case 'ADD_PROJECT':
+                    return { ...state, projects: [...state.projects, action.payload] };
+                case 'UPDATE_PROJECT':
+                    return {
+                        ...state,
+                        projects: state.projects.map(p =>
+                            p.id === action.payload.id ? { ...p, ...action.payload.updates, updatedAt: new Date().toISOString() } : p
+                        )
+                    };
+                case 'DELETE_PROJECT':
+                    return { ...state, projects: state.projects.filter(p => p.id !== action.payload) };
+                case 'SET_ACTIVE_TAB':
+                    return { ...state, ui: { ...state.ui, activeTab: action.payload } };
+                case 'SET_FILTERS':
+                    return { ...state, ui: { ...state.ui, filters: { ...state.ui.filters, ...action.payload } } };
+                case 'SET_SELECTED_PROJECT':
+                    return { ...state, ui: { ...state.ui, selectedProjectId: action.payload } };
+                case 'SET_MODAL':
+                    return { ...state, ui: { ...state.ui, modalOpen: action.payload } };
+                case 'SET_TIMELINE_GROUP_BY':
+                    return { ...state, ui: { ...state.ui, timelineGroupBy: action.payload } };
+                case 'SET_TIMELINE_ZOOM':
+                    return { ...state, ui: { ...state.ui, timelineZoom: action.payload } };
+                case 'LOAD_SAMPLE_DATA':
+                    return { ...state, projects: sampleProjects };
+                default:
+                    return state;
+            }
+        };
+
+        // Stage colors
+        const stageColors = {
+            'Signed': { bg: 'bg-green-500', text: 'text-green-700', border: 'border-green-500', hex: '#22c55e' },
+            'Close to Signing': { bg: 'bg-blue-500', text: 'text-blue-700', border: 'border-blue-500', hex: '#3b82f6' },
+            'Interested': { bg: 'bg-amber-500', text: 'text-amber-700', border: 'border-amber-500', hex: '#f59e0b' },
+            'Frontier': { bg: 'bg-gray-500', text: 'text-gray-700', border: 'border-gray-500', hex: '#6b7280' }
+        };
+
+        // Capacity Indicator Component
+        const CapacityIndicator = () => {
+            const { state } = useContext(AppContext);
+            const { capacity } = state.settings;
+
+            const scheduledProjects = state.projects.filter(p => p.startWeek !== null);
+
+            const used = {
+                dataScientists: scheduledProjects.reduce((sum, p) => sum + p.resources.dataScientists, 0),
+                geoscientists: scheduledProjects.reduce((sum, p) => sum + p.resources.geoscientists, 0),
+                projectManagers: scheduledProjects.reduce((sum, p) => sum + p.resources.projectManagers, 0)
+            };
+
+            const getColor = (used, total) => {
+                const percent = (used / total) * 100;
+                if (percent < 70) return 'text-green-600';
+                if (percent < 90) return 'text-amber-600';
+                return 'text-red-600';
+            };
+
+            return (
+                <div className="flex gap-6 text-sm font-medium">
+                    <div className={getColor(used.dataScientists, capacity.dataScientists)}>
+                        DS: {used.dataScientists}/{capacity.dataScientists} ({Math.round((used.dataScientists / capacity.dataScientists) * 100)}%)
+                    </div>
+                    <div className={getColor(used.geoscientists, capacity.geoscientists)}>
+                        GS: {used.geoscientists}/{capacity.geoscientists} ({Math.round((used.geoscientists / capacity.geoscientists) * 100)}%)
+                    </div>
+                    <div className={getColor(used.projectManagers, capacity.projectManagers)}>
+                        PM: {used.projectManagers}/{capacity.projectManagers} ({Math.round((used.projectManagers / capacity.projectManagers) * 100)}%)
+                    </div>
+                </div>
+            );
+        };
+
+        // Settings Modal Component
+        const SettingsModal = ({ onClose }) => {
+            const { state, dispatch } = useContext(AppContext);
+            const [localSettings, setLocalSettings] = useState(state.settings);
+
+            const handleSave = () => {
+                dispatch({ type: 'UPDATE_SETTINGS', payload: localSettings });
+                onClose();
+            };
+
+            return (
+                <div className="fixed inset-0 modal-backdrop flex items-center justify-center z-50">
+                    <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-2xl">
+                        <h2 className="text-2xl font-bold mb-4">Global Settings</h2>
+
+                        <div className="mb-6">
+                            <h3 className="text-lg font-semibold mb-3">Team Capacity</h3>
+                            <div className="grid grid-cols-3 gap-4">
+                                <div>
+                                    <label className="block text-sm font-medium mb-1">Data Scientists</label>
+                                    <input
+                                        type="number"
+                                        value={localSettings.capacity.dataScientists}
+                                        onChange={(e) => setLocalSettings({
+                                            ...localSettings,
+                                            capacity: { ...localSettings.capacity, dataScientists: parseInt(e.target.value) }
+                                        })}
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium mb-1">Geoscientists</label>
+                                    <input
+                                        type="number"
+                                        value={localSettings.capacity.geoscientists}
+                                        onChange={(e) => setLocalSettings({
+                                            ...localSettings,
+                                            capacity: { ...localSettings.capacity, geoscientists: parseInt(e.target.value) }
+                                        })}
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium mb-1">Project Managers</label>
+                                    <input
+                                        type="number"
+                                        value={localSettings.capacity.projectManagers}
+                                        onChange={(e) => setLocalSettings({
+                                            ...localSettings,
+                                            capacity: { ...localSettings.capacity, projectManagers: parseInt(e.target.value) }
+                                        })}
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="mb-6">
+                            <h3 className="text-lg font-semibold mb-3">Default Stage Probabilities (%)</h3>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm font-medium mb-1">Signed</label>
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        max="100"
+                                        value={localSettings.defaultProbabilities.signed}
+                                        onChange={(e) => setLocalSettings({
+                                            ...localSettings,
+                                            defaultProbabilities: { ...localSettings.defaultProbabilities, signed: parseInt(e.target.value) }
+                                        })}
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium mb-1">Close to Signing</label>
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        max="100"
+                                        value={localSettings.defaultProbabilities.closeToSigning}
+                                        onChange={(e) => setLocalSettings({
+                                            ...localSettings,
+                                            defaultProbabilities: { ...localSettings.defaultProbabilities, closeToSigning: parseInt(e.target.value) }
+                                        })}
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium mb-1">Interested</label>
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        max="100"
+                                        value={localSettings.defaultProbabilities.interested}
+                                        onChange={(e) => setLocalSettings({
+                                            ...localSettings,
+                                            defaultProbabilities: { ...localSettings.defaultProbabilities, interested: parseInt(e.target.value) }
+                                        })}
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium mb-1">Frontier</label>
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        max="100"
+                                        value={localSettings.defaultProbabilities.frontier}
+                                        onChange={(e) => setLocalSettings({
+                                            ...localSettings,
+                                            defaultProbabilities: { ...localSettings.defaultProbabilities, frontier: parseInt(e.target.value) }
+                                        })}
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="flex justify-end gap-3">
+                            <button
+                                onClick={onClose}
+                                className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleSave}
+                                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                            >
+                                Save Settings
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // Project Detail Modal Component
+        const ProjectDetailModal = ({ projectId, onClose }) => {
+            const { state, dispatch } = useContext(AppContext);
+            const project = state.projects.find(p => p.id === projectId) || {};
+
+            const [formData, setFormData] = useState(project);
+            const [showAllPositive, setShowAllPositive] = useState(false);
+            const [showAllNegative, setShowAllNegative] = useState(false);
+
+            const handleSave = () => {
+                dispatch({
+                    type: 'UPDATE_PROJECT',
+                    payload: { id: projectId, updates: formData }
+                });
+                onClose();
+            };
+
+            const handleDelete = () => {
+                if (confirm('Are you sure you want to delete this project?')) {
+                    dispatch({ type: 'DELETE_PROJECT', payload: projectId });
+                    onClose();
+                }
+            };
+
+            const addObservation = (type) => {
+                const text = prompt(`Add ${type} observation:`);
+                if (text) {
+                    const likelihood = prompt('Likelihood (Low/Medium/High):', 'Medium');
+                    const newObs = {
+                        text,
+                        likelihood: likelihood || 'Medium',
+                        timestamp: new Date().toISOString()
+                    };
+                    setFormData({
+                        ...formData,
+                        observations: {
+                            ...formData.observations,
+                            [type]: [...(formData.observations?.[type] || []), newObs]
+                        }
+                    });
+                }
+            };
+
+            const deleteObservation = (type, index) => {
+                setFormData({
+                    ...formData,
+                    observations: {
+                        ...formData.observations,
+                        [type]: formData.observations[type].filter((_, i) => i !== index)
+                    }
+                });
+            };
+
+            return (
+                <div className="fixed inset-0 modal-backdrop flex items-center justify-center z-50 overflow-y-auto">
+                    <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-4xl my-8">
+                        <div className="mb-4">
+                            <input
+                                type="text"
+                                value={formData.name}
+                                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                                className="text-2xl font-bold w-full px-2 py-1 border-b-2 border-gray-300 focus:border-blue-500 outline-none"
+                            />
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4 mb-4">
+                            <div>
+                                <label className="block text-sm font-medium mb-1">Stage</label>
+                                <select
+                                    value={formData.stage}
+                                    onChange={(e) => setFormData({ ...formData, stage: e.target.value })}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                                >
+                                    <option>Signed</option>
+                                    <option>Close to Signing</option>
+                                    <option>Interested</option>
+                                    <option>Frontier</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium mb-1">Probability (%)</label>
+                                <input
+                                    type="number"
+                                    min="0"
+                                    max="100"
+                                    value={formData.probability}
+                                    onChange={(e) => setFormData({ ...formData, probability: parseInt(e.target.value) })}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4 mb-4">
+                            <div>
+                                <label className="block text-sm font-medium mb-1">Sponsor</label>
+                                <input
+                                    type="text"
+                                    value={formData.sponsor}
+                                    onChange={(e) => setFormData({ ...formData, sponsor: e.target.value })}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium mb-1">OKR</label>
+                                <select
+                                    value={formData.okr}
+                                    onChange={(e) => setFormData({ ...formData, okr: e.target.value })}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                                >
+                                    <option>Revenue</option>
+                                    <option>Projects</option>
+                                    <option>Innovation</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-3 gap-4 mb-4">
+                            <div>
+                                <label className="block text-sm font-medium mb-1">Source</label>
+                                <select
+                                    value={formData.source}
+                                    onChange={(e) => setFormData({ ...formData, source: e.target.value })}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                                >
+                                    <option>External</option>
+                                    <option>Internal</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium mb-1">Impact</label>
+                                <select
+                                    value={formData.impact}
+                                    onChange={(e) => setFormData({ ...formData, impact: e.target.value })}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                                >
+                                    <option>Low</option>
+                                    <option>Medium</option>
+                                    <option>High</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium mb-1">Effort</label>
+                                <select
+                                    value={formData.effort}
+                                    onChange={(e) => setFormData({ ...formData, effort: e.target.value })}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                                >
+                                    <option>S</option>
+                                    <option>M</option>
+                                    <option>L</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4 mb-4">
+                            <div>
+                                <label className="block text-sm font-medium mb-1">Duration (weeks)</label>
+                                <input
+                                    type="number"
+                                    value={formData.durationWeeks}
+                                    onChange={(e) => setFormData({ ...formData, durationWeeks: parseInt(e.target.value) })}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium mb-1">Start Week</label>
+                                <input
+                                    type="number"
+                                    min="1"
+                                    max="52"
+                                    value={formData.startWeek || ''}
+                                    onChange={(e) => setFormData({ ...formData, startWeek: e.target.value ? parseInt(e.target.value) : null })}
+                                    placeholder="Unscheduled"
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="mb-4">
+                            <label className="block text-sm font-medium mb-2">Resources</label>
+                            <div className="grid grid-cols-3 gap-4">
+                                <div>
+                                    <label className="block text-xs text-gray-600 mb-1">Data Scientists</label>
+                                    <input
+                                        type="number"
+                                        value={formData.resources?.dataScientists || 0}
+                                        onChange={(e) => setFormData({
+                                            ...formData,
+                                            resources: { ...formData.resources, dataScientists: parseInt(e.target.value) || 0 }
+                                        })}
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-xs text-gray-600 mb-1">Geoscientists</label>
+                                    <input
+                                        type="number"
+                                        value={formData.resources?.geoscientists || 0}
+                                        onChange={(e) => setFormData({
+                                            ...formData,
+                                            resources: { ...formData.resources, geoscientists: parseInt(e.target.value) || 0 }
+                                        })}
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-xs text-gray-600 mb-1">Project Managers</label>
+                                    <input
+                                        type="number"
+                                        value={formData.resources?.projectManagers || 0}
+                                        onChange={(e) => setFormData({
+                                            ...formData,
+                                            resources: { ...formData.resources, projectManagers: parseInt(e.target.value) || 0 }
+                                        })}
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="mb-4">
+                            <label className="block text-sm font-medium mb-1">Description</label>
+                            <textarea
+                                value={formData.description}
+                                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                                maxLength="500"
+                                rows="3"
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                            />
+                        </div>
+
+                        <div className="mb-4">
+                            <label className="block text-sm font-medium mb-2">Observations</label>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="border border-green-300 rounded-md p-3">
+                                    <div className="flex justify-between items-center mb-2">
+                                        <h4 className="font-medium text-green-700">Positive</h4>
+                                        <button
+                                            onClick={() => addObservation('positive')}
+                                            className="text-sm text-green-600 hover:text-green-800"
+                                        >
+                                            + Add
+                                        </button>
+                                    </div>
+                                    {(showAllPositive ? formData.observations?.positive : formData.observations?.positive?.slice(0, 3))?.map((obs, i) => (
+                                        <div key={i} className="text-sm mb-2 p-2 bg-green-50 rounded">
+                                            <div>{obs.text}</div>
+                                            <div className="text-xs text-gray-600 mt-1">
+                                                {obs.likelihood} | {new Date(obs.timestamp).toLocaleDateString()}
+                                                <button
+                                                    onClick={() => deleteObservation('positive', i)}
+                                                    className="ml-2 text-red-600 hover:text-red-800"
+                                                >
+                                                    delete
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                    {formData.observations?.positive?.length > 3 && (
+                                        <button
+                                            onClick={() => setShowAllPositive(!showAllPositive)}
+                                            className="text-sm text-green-600 hover:text-green-800"
+                                        >
+                                            {showAllPositive ? 'Show less' : `Show all (${formData.observations.positive.length})`}
+                                        </button>
+                                    )}
+                                </div>
+                                <div className="border border-red-300 rounded-md p-3">
+                                    <div className="flex justify-between items-center mb-2">
+                                        <h4 className="font-medium text-red-700">Negative</h4>
+                                        <button
+                                            onClick={() => addObservation('negative')}
+                                            className="text-sm text-red-600 hover:text-red-800"
+                                        >
+                                            + Add
+                                        </button>
+                                    </div>
+                                    {(showAllNegative ? formData.observations?.negative : formData.observations?.negative?.slice(0, 3))?.map((obs, i) => (
+                                        <div key={i} className="text-sm mb-2 p-2 bg-red-50 rounded">
+                                            <div>{obs.text}</div>
+                                            <div className="text-xs text-gray-600 mt-1">
+                                                {obs.likelihood} | {new Date(obs.timestamp).toLocaleDateString()}
+                                                <button
+                                                    onClick={() => deleteObservation('negative', i)}
+                                                    className="ml-2 text-red-600 hover:text-red-800"
+                                                >
+                                                    delete
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                    {formData.observations?.negative?.length > 3 && (
+                                        <button
+                                            onClick={() => setShowAllNegative(!showAllNegative)}
+                                            className="text-sm text-red-600 hover:text-red-800"
+                                        >
+                                            {showAllNegative ? 'Show less' : `Show all (${formData.observations.negative.length})`}
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="text-xs text-gray-500 mb-4">
+                            Created: {new Date(formData.createdAt).toLocaleString()} | Last updated: {new Date(formData.updatedAt).toLocaleString()}
+                        </div>
+
+                        <div className="flex justify-between">
+                            <button
+                                onClick={handleDelete}
+                                className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
+                            >
+                                Delete Project
+                            </button>
+                            <div className="flex gap-3">
+                                <button
+                                    onClick={onClose}
+                                    className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={handleSave}
+                                    className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                                >
+                                    Save Changes
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // Add Project Modal Component
+        const AddProjectModal = ({ onClose }) => {
+            const { state, dispatch } = useContext(AppContext);
+            const [showMore, setShowMore] = useState(false);
+            const [formData, setFormData] = useState({
+                name: '',
+                sponsor: '',
+                description: '',
+                okr: 'Revenue',
+                source: 'External',
+                stage: 'Frontier',
+                probability: state.settings.defaultProbabilities.frontier,
+                impact: 'Medium',
+                effort: 'M',
+                durationWeeks: 4,
+                resources: { dataScientists: 1, geoscientists: 0, projectManagers: 0 },
+                startWeek: null,
+                dependencies: [],
+                observations: { positive: [], negative: [] }
+            });
+
+            const handleSubmit = () => {
+                if (!formData.name) {
+                    alert('Project name is required');
+                    return;
+                }
+
+                const newProject = {
+                    ...formData,
+                    id: generateId(),
+                    createdAt: new Date().toISOString(),
+                    updatedAt: new Date().toISOString()
+                };
+
+                dispatch({ type: 'ADD_PROJECT', payload: newProject });
+                onClose();
+            };
+
+            return (
+                <div className="fixed inset-0 modal-backdrop flex items-center justify-center z-50">
+                    <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-2xl">
+                        <h2 className="text-2xl font-bold mb-4">Add New Project</h2>
+
+                        <div className="mb-4">
+                            <label className="block text-sm font-medium mb-1">Project Name *</label>
+                            <input
+                                type="text"
+                                value={formData.name}
+                                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                                placeholder="Enter project name"
+                            />
+                        </div>
+
+                        <div className="grid grid-cols-3 gap-4 mb-4">
+                            <div>
+                                <label className="block text-sm font-medium mb-1">Stage *</label>
+                                <select
+                                    value={formData.stage}
+                                    onChange={(e) => {
+                                        const stage = e.target.value;
+                                        const probMap = {
+                                            'Signed': state.settings.defaultProbabilities.signed,
+                                            'Close to Signing': state.settings.defaultProbabilities.closeToSigning,
+                                            'Interested': state.settings.defaultProbabilities.interested,
+                                            'Frontier': state.settings.defaultProbabilities.frontier
+                                        };
+                                        setFormData({ ...formData, stage, probability: probMap[stage] });
+                                    }}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                                >
+                                    <option>Signed</option>
+                                    <option>Close to Signing</option>
+                                    <option>Interested</option>
+                                    <option>Frontier</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium mb-1">OKR *</label>
+                                <select
+                                    value={formData.okr}
+                                    onChange={(e) => setFormData({ ...formData, okr: e.target.value })}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                                >
+                                    <option>Revenue</option>
+                                    <option>Projects</option>
+                                    <option>Innovation</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium mb-1">Source *</label>
+                                <select
+                                    value={formData.source}
+                                    onChange={(e) => setFormData({ ...formData, source: e.target.value })}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                                >
+                                    <option>External</option>
+                                    <option>Internal</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <button
+                            onClick={() => setShowMore(!showMore)}
+                            className="text-blue-600 hover:text-blue-800 mb-4 text-sm"
+                        >
+                            {showMore ? '▼ Hide Details' : '▶ More Details'}
+                        </button>
+
+                        {showMore && (
+                            <div>
+                                <div className="mb-4">
+                                    <label className="block text-sm font-medium mb-1">Sponsor</label>
+                                    <input
+                                        type="text"
+                                        value={formData.sponsor}
+                                        onChange={(e) => setFormData({ ...formData, sponsor: e.target.value })}
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                                    />
+                                </div>
+
+                                <div className="grid grid-cols-3 gap-4 mb-4">
+                                    <div>
+                                        <label className="block text-sm font-medium mb-1">Impact</label>
+                                        <select
+                                            value={formData.impact}
+                                            onChange={(e) => setFormData({ ...formData, impact: e.target.value })}
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                                        >
+                                            <option>Low</option>
+                                            <option>Medium</option>
+                                            <option>High</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium mb-1">Effort</label>
+                                        <select
+                                            value={formData.effort}
+                                            onChange={(e) => setFormData({ ...formData, effort: e.target.value })}
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                                        >
+                                            <option>S</option>
+                                            <option>M</option>
+                                            <option>L</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium mb-1">Duration (weeks)</label>
+                                        <input
+                                            type="number"
+                                            value={formData.durationWeeks}
+                                            onChange={(e) => setFormData({ ...formData, durationWeeks: parseInt(e.target.value) })}
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-3 gap-4 mb-4">
+                                    <div>
+                                        <label className="block text-sm font-medium mb-1">Data Scientists</label>
+                                        <input
+                                            type="number"
+                                            value={formData.resources.dataScientists}
+                                            onChange={(e) => setFormData({
+                                                ...formData,
+                                                resources: { ...formData.resources, dataScientists: parseInt(e.target.value) || 0 }
+                                            })}
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium mb-1">Geoscientists</label>
+                                        <input
+                                            type="number"
+                                            value={formData.resources.geoscientists}
+                                            onChange={(e) => setFormData({
+                                                ...formData,
+                                                resources: { ...formData.resources, geoscientists: parseInt(e.target.value) || 0 }
+                                            })}
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium mb-1">Project Managers</label>
+                                        <input
+                                            type="number"
+                                            value={formData.resources.projectManagers}
+                                            onChange={(e) => setFormData({
+                                                ...formData,
+                                                resources: { ...formData.resources, projectManagers: parseInt(e.target.value) || 0 }
+                                            })}
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="mb-4">
+                                    <label className="block text-sm font-medium mb-1">Description</label>
+                                    <textarea
+                                        value={formData.description}
+                                        onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                                        rows="2"
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                                    />
+                                </div>
+                            </div>
+                        )}
+
+                        <div className="flex justify-end gap-3">
+                            <button
+                                onClick={onClose}
+                                className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleSubmit}
+                                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                            >
+                                Add Project
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // Project List View Component
+        const ProjectListView = () => {
+            const { state, dispatch } = useContext(AppContext);
+            const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
+
+            const filteredProjects = useMemo(() => {
+                let filtered = [...state.projects];
+
+                const { search, stages, okrs, sources, scheduled } = state.ui.filters;
+
+                if (search) {
+                    filtered = filtered.filter(p =>
+                        p.name.toLowerCase().includes(search.toLowerCase()) ||
+                        p.sponsor.toLowerCase().includes(search.toLowerCase())
+                    );
+                }
+
+                if (stages.length > 0) {
+                    filtered = filtered.filter(p => stages.includes(p.stage));
+                }
+
+                if (okrs.length > 0) {
+                    filtered = filtered.filter(p => okrs.includes(p.okr));
+                }
+
+                if (sources.length > 0) {
+                    filtered = filtered.filter(p => sources.includes(p.source));
+                }
+
+                if (scheduled === 'scheduled') {
+                    filtered = filtered.filter(p => p.startWeek !== null);
+                } else if (scheduled === 'unscheduled') {
+                    filtered = filtered.filter(p => p.startWeek === null);
+                }
+
+                if (sortConfig.key) {
+                    filtered.sort((a, b) => {
+                        let aVal = a[sortConfig.key];
+                        let bVal = b[sortConfig.key];
+
+                        if (sortConfig.key === 'resources') {
+                            aVal = a.resources.dataScientists + a.resources.geoscientists + a.resources.projectManagers;
+                            bVal = b.resources.dataScientists + b.resources.geoscientists + b.resources.projectManagers;
+                        }
+
+                        if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
+                        if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
+                        return 0;
+                    });
+                }
+
+                return filtered;
+            }, [state.projects, state.ui.filters, sortConfig]);
+
+            const handleSort = (key) => {
+                setSortConfig({
+                    key,
+                    direction: sortConfig.key === key && sortConfig.direction === 'asc' ? 'desc' : 'asc'
+                });
+            };
+
+            return (
+                <div>
+                    <div className="mb-4 flex gap-4">
+                        <input
+                            type="text"
+                            placeholder="Search by name or sponsor..."
+                            value={state.ui.filters.search}
+                            onChange={(e) => dispatch({
+                                type: 'SET_FILTERS',
+                                payload: { search: e.target.value }
+                            })}
+                            className="flex-1 px-3 py-2 border border-gray-300 rounded-md"
+                        />
+                        <select
+                            multiple
+                            value={state.ui.filters.stages}
+                            onChange={(e) => dispatch({
+                                type: 'SET_FILTERS',
+                                payload: { stages: Array.from(e.target.selectedOptions, option => option.value) }
+                            })}
+                            className="px-3 py-2 border border-gray-300 rounded-md"
+                        >
+                            <option>Signed</option>
+                            <option>Close to Signing</option>
+                            <option>Interested</option>
+                            <option>Frontier</option>
+                        </select>
+                        <select
+                            value={state.ui.filters.scheduled || ''}
+                            onChange={(e) => dispatch({
+                                type: 'SET_FILTERS',
+                                payload: { scheduled: e.target.value || null }
+                            })}
+                            className="px-3 py-2 border border-gray-300 rounded-md"
+                        >
+                            <option value="">All</option>
+                            <option value="scheduled">Scheduled</option>
+                            <option value="unscheduled">Unscheduled</option>
+                        </select>
+                    </div>
+
+                    <div className="table-container">
+                        <table className="w-full border-collapse">
+                            <thead className="sticky-header bg-gray-100">
+                                <tr>
+                                    <th className="px-4 py-2 text-left cursor-pointer" onClick={() => handleSort('name')}>
+                                        Name {sortConfig.key === 'name' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                                    </th>
+                                    <th className="px-4 py-2 text-left cursor-pointer" onClick={() => handleSort('sponsor')}>
+                                        Sponsor {sortConfig.key === 'sponsor' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                                    </th>
+                                    <th className="px-4 py-2 text-left cursor-pointer" onClick={() => handleSort('okr')}>
+                                        OKR {sortConfig.key === 'okr' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                                    </th>
+                                    <th className="px-4 py-2 text-left cursor-pointer" onClick={() => handleSort('source')}>
+                                        Source {sortConfig.key === 'source' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                                    </th>
+                                    <th className="px-4 py-2 text-left cursor-pointer" onClick={() => handleSort('stage')}>
+                                        Stage {sortConfig.key === 'stage' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                                    </th>
+                                    <th className="px-4 py-2 text-left cursor-pointer" onClick={() => handleSort('probability')}>
+                                        Probability {sortConfig.key === 'probability' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                                    </th>
+                                    <th className="px-4 py-2 text-left cursor-pointer" onClick={() => handleSort('impact')}>
+                                        Impact {sortConfig.key === 'impact' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                                    </th>
+                                    <th className="px-4 py-2 text-left cursor-pointer" onClick={() => handleSort('effort')}>
+                                        Effort {sortConfig.key === 'effort' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                                    </th>
+                                    <th className="px-4 py-2 text-left cursor-pointer" onClick={() => handleSort('durationWeeks')}>
+                                        Duration {sortConfig.key === 'durationWeeks' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                                    </th>
+                                    <th className="px-4 py-2 text-left">Resources</th>
+                                    <th className="px-4 py-2 text-left cursor-pointer" onClick={() => handleSort('startWeek')}>
+                                        Start Week {sortConfig.key === 'startWeek' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {filteredProjects.map(project => (
+                                    <tr key={project.id} className="border-b hover:bg-gray-50">
+                                        <td className="px-4 py-2">
+                                            <button
+                                                onClick={() => dispatch({ type: 'SET_MODAL', payload: project.id })}
+                                                className="text-blue-600 hover:underline text-left"
+                                            >
+                                                {project.name}
+                                            </button>
+                                        </td>
+                                        <td className="px-4 py-2">{project.sponsor}</td>
+                                        <td className="px-4 py-2">
+                                            <span className="px-2 py-1 rounded text-xs bg-blue-100 text-blue-800">
+                                                {project.okr}
+                                            </span>
+                                        </td>
+                                        <td className="px-4 py-2">
+                                            <span className={`px-2 py-1 rounded text-xs ${project.source === 'Internal' ? 'bg-purple-100 text-purple-800' : 'bg-gray-100 text-gray-800'}`}>
+                                                {project.source}
+                                            </span>
+                                        </td>
+                                        <td className="px-4 py-2">
+                                            <span className={`px-2 py-1 rounded text-xs ${stageColors[project.stage].bg} text-white`}>
+                                                {project.stage}
+                                            </span>
+                                        </td>
+                                        <td className="px-4 py-2">{project.probability}%</td>
+                                        <td className="px-4 py-2">{project.impact}</td>
+                                        <td className="px-4 py-2">{project.effort}</td>
+                                        <td className="px-4 py-2">{project.durationWeeks}w</td>
+                                        <td className="px-4 py-2 text-sm">
+                                            DS:{project.resources.dataScientists} GS:{project.resources.geoscientists} PM:{project.resources.projectManagers}
+                                        </td>
+                                        <td className="px-4 py-2">
+                                            {project.startWeek ? `Week ${project.startWeek}` : <span className="text-gray-400">Unscheduled</span>}
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div className="mt-4 text-sm text-gray-600">
+                        Showing {filteredProjects.length} of {state.projects.length} projects
+                    </div>
+                </div>
+            );
+        };
+
+        // Timeline View Component
+        const TimelineView = () => {
+            const { state, dispatch } = useContext(AppContext);
+            const [draggedProject, setDraggedProject] = useState(null);
+
+            const scheduledProjects = state.projects.filter(p => p.startWeek !== null);
+            const unscheduledProjects = state.projects.filter(p => p.startWeek === null);
+
+            const handleDragStart = (e, project) => {
+                setDraggedProject(project);
+                e.dataTransfer.effectAllowed = 'move';
+            };
+
+            const handleDragOver = (e) => {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'move';
+            };
+
+            const handleDrop = (e, week) => {
+                e.preventDefault();
+                if (draggedProject) {
+                    dispatch({
+                        type: 'UPDATE_PROJECT',
+                        payload: {
+                            id: draggedProject.id,
+                            updates: { startWeek: week }
+                        }
+                    });
+                    setDraggedProject(null);
+                }
+            };
+
+            const weeks = Array.from({ length: 52 }, (_, i) => i + 1);
+
+            return (
+                <div className="flex">
+                    <div className="w-64 border-r pr-4 flex-shrink-0">
+                        <h3 className="font-bold mb-2">Unscheduled ({unscheduledProjects.length})</h3>
+                        <div className="space-y-2">
+                            {unscheduledProjects.map(project => (
+                                <div
+                                    key={project.id}
+                                    draggable
+                                    onDragStart={(e) => handleDragStart(e, project)}
+                                    className={`p-2 rounded cursor-move ${stageColors[project.stage].bg} text-white text-sm`}
+                                >
+                                    <div className="font-medium">{project.name}</div>
+                                    <div className="text-xs">{project.durationWeeks}w | DS:{project.resources.dataScientists} GS:{project.resources.geoscientists} PM:{project.resources.projectManagers}</div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
+                    <div className="flex-1 overflow-x-auto pl-4">
+                        <div className="mb-4 flex gap-2">
+                            <button
+                                onClick={() => dispatch({ type: 'SET_TIMELINE_GROUP_BY', payload: 'stage' })}
+                                className={`px-3 py-1 rounded ${state.ui.timelineGroupBy === 'stage' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}
+                            >
+                                Group by Stage
+                            </button>
+                            <button
+                                onClick={() => dispatch({ type: 'SET_TIMELINE_GROUP_BY', payload: 'okr' })}
+                                className={`px-3 py-1 rounded ${state.ui.timelineGroupBy === 'okr' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}
+                            >
+                                Group by OKR
+                            </button>
+                            <button
+                                onClick={() => dispatch({ type: 'SET_TIMELINE_GROUP_BY', payload: 'none' })}
+                                className={`px-3 py-1 rounded ${state.ui.timelineGroupBy === 'none' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}
+                            >
+                                No Grouping
+                            </button>
+                        </div>
+
+                        <div className="relative" style={{ minWidth: '2000px' }}>
+                            <div className="flex border-b pb-2 mb-4">
+                                {weeks.map(week => (
+                                    <div key={week} className="flex-shrink-0" style={{ width: '40px' }}>
+                                        <div className="text-xs text-center">{week}</div>
+                                    </div>
+                                ))}
+                            </div>
+
+                            {scheduledProjects.map((project, idx) => (
+                                <div
+                                    key={project.id}
+                                    className="mb-2 relative"
+                                    style={{ height: '50px' }}
+                                >
+                                    <div
+                                        draggable
+                                        onDragStart={(e) => handleDragStart(e, project)}
+                                        onClick={() => dispatch({ type: 'SET_MODAL', payload: project.id })}
+                                        className={`timeline-bar absolute ${stageColors[project.stage].bg} text-white p-2 rounded text-xs cursor-pointer`}
+                                        style={{
+                                            left: `${(project.startWeek - 1) * 40}px`,
+                                            width: `${project.durationWeeks * 40}px`,
+                                            opacity: project.probability / 100,
+                                            top: 0
+                                        }}
+                                    >
+                                        <div className="font-medium truncate">{project.name}</div>
+                                        <div className="text-xs">DS:{project.resources.dataScientists} GS:{project.resources.geoscientists} PM:{project.resources.projectManagers}</div>
+                                    </div>
+                                </div>
+                            ))}
+
+                            <div className="absolute inset-0 pointer-events-none">
+                                {weeks.map(week => (
+                                    <div
+                                        key={week}
+                                        onDragOver={handleDragOver}
+                                        onDrop={(e) => handleDrop(e, week)}
+                                        className="absolute pointer-events-auto"
+                                        style={{
+                                            left: `${(week - 1) * 40}px`,
+                                            width: '40px',
+                                            height: '100%'
+                                        }}
+                                    />
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // Resource Allocation View Component
+        const ResourceAllocationView = () => {
+            const { state } = useContext(AppContext);
+
+            const chartData = useMemo(() => {
+                const data = [];
+                for (let week = 1; week <= 52; week++) {
+                    const weekData = { week };
+
+                    ['Signed', 'Close to Signing', 'Interested', 'Frontier'].forEach(stage => {
+                        const projects = state.projects.filter(p =>
+                            p.stage === stage &&
+                            p.startWeek !== null &&
+                            p.startWeek <= week &&
+                            p.startWeek + p.durationWeeks > week
+                        );
+
+                        weekData[`${stage}_ds`] = projects.reduce((sum, p) => sum + p.resources.dataScientists, 0);
+                        weekData[`${stage}_gs`] = projects.reduce((sum, p) => sum + p.resources.geoscientists, 0);
+                        weekData[`${stage}_pm`] = projects.reduce((sum, p) => sum + p.resources.projectManagers, 0);
+                    });
+
+                    data.push(weekData);
+                }
+                return data;
+            }, [state.projects]);
+
+            return (
+                <div className="space-y-8">
+                    <div>
+                        <h3 className="text-lg font-bold mb-4">Data Scientists</h3>
+                        <ResponsiveContainer width="100%" height={200}>
+                            <AreaChart data={chartData}>
+                                <CartesianGrid strokeDasharray="3 3" />
+                                <XAxis dataKey="week" />
+                                <YAxis />
+                                <Tooltip />
+                                <Legend />
+                                <Area type="monotone" dataKey="Signed_ds" stackId="1" stroke="#22c55e" fill="#22c55e" name="Signed" />
+                                <Area type="monotone" dataKey="Close to Signing_ds" stackId="1" stroke="#3b82f6" fill="#3b82f6" name="Close to Signing" />
+                                <Area type="monotone" dataKey="Interested_ds" stackId="1" stroke="#f59e0b" fill="#f59e0b" name="Interested" />
+                                <Area type="monotone" dataKey="Frontier_ds" stackId="1" stroke="#6b7280" fill="#6b7280" name="Frontier" />
+                            </AreaChart>
+                        </ResponsiveContainer>
+                        <div className="text-sm text-gray-600 mt-2">
+                            Capacity: {state.settings.capacity.dataScientists}
+                        </div>
+                    </div>
+
+                    <div>
+                        <h3 className="text-lg font-bold mb-4">Geoscientists</h3>
+                        <ResponsiveContainer width="100%" height={200}>
+                            <AreaChart data={chartData}>
+                                <CartesianGrid strokeDasharray="3 3" />
+                                <XAxis dataKey="week" />
+                                <YAxis />
+                                <Tooltip />
+                                <Legend />
+                                <Area type="monotone" dataKey="Signed_gs" stackId="1" stroke="#22c55e" fill="#22c55e" name="Signed" />
+                                <Area type="monotone" dataKey="Close to Signing_gs" stackId="1" stroke="#3b82f6" fill="#3b82f6" name="Close to Signing" />
+                                <Area type="monotone" dataKey="Interested_gs" stackId="1" stroke="#f59e0b" fill="#f59e0b" name="Interested" />
+                                <Area type="monotone" dataKey="Frontier_gs" stackId="1" stroke="#6b7280" fill="#6b7280" name="Frontier" />
+                            </AreaChart>
+                        </ResponsiveContainer>
+                        <div className="text-sm text-gray-600 mt-2">
+                            Capacity: {state.settings.capacity.geoscientists}
+                        </div>
+                    </div>
+
+                    <div>
+                        <h3 className="text-lg font-bold mb-4">Project Managers</h3>
+                        <ResponsiveContainer width="100%" height={200}>
+                            <AreaChart data={chartData}>
+                                <CartesianGrid strokeDasharray="3 3" />
+                                <XAxis dataKey="week" />
+                                <YAxis />
+                                <Tooltip />
+                                <Legend />
+                                <Area type="monotone" dataKey="Signed_pm" stackId="1" stroke="#22c55e" fill="#22c55e" name="Signed" />
+                                <Area type="monotone" dataKey="Close to Signing_pm" stackId="1" stroke="#3b82f6" fill="#3b82f6" name="Close to Signing" />
+                                <Area type="monotone" dataKey="Interested_pm" stackId="1" stroke="#f59e0b" fill="#f59e0b" name="Interested" />
+                                <Area type="monotone" dataKey="Frontier_pm" stackId="1" stroke="#6b7280" fill="#6b7280" name="Frontier" />
+                            </AreaChart>
+                        </ResponsiveContainer>
+                        <div className="text-sm text-gray-600 mt-2">
+                            Capacity: {state.settings.capacity.projectManagers}
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // Forecast View Component
+        const ForecastView = () => {
+            const { state } = useContext(AppContext);
+
+            const scenarios = useMemo(() => {
+                const weeksPerYear = 52;
+                const totalCapacity = {
+                    ds: state.settings.capacity.dataScientists * weeksPerYear,
+                    gs: state.settings.capacity.geoscientists * weeksPerYear,
+                    pm: state.settings.capacity.projectManagers * weeksPerYear
+                };
+
+                const calculateScenario = (filter) => {
+                    const projects = state.projects.filter(filter);
+                    return {
+                        ds: projects.reduce((sum, p) => sum + (p.resources.dataScientists * p.durationWeeks), 0),
+                        gs: projects.reduce((sum, p) => sum + (p.resources.geoscientists * p.durationWeeks), 0),
+                        pm: projects.reduce((sum, p) => sum + (p.resources.projectManagers * p.durationWeeks), 0)
+                    };
+                };
+
+                return {
+                    committed: calculateScenario(p => p.stage === 'Signed'),
+                    highConfidence: calculateScenario(p => ['Signed', 'Close to Signing'].includes(p.stage)),
+                    expected: {
+                        ds: state.projects.reduce((sum, p) => sum + (p.resources.dataScientists * p.durationWeeks * p.probability / 100), 0),
+                        gs: state.projects.reduce((sum, p) => sum + (p.resources.geoscientists * p.durationWeeks * p.probability / 100), 0),
+                        pm: state.projects.reduce((sum, p) => sum + (p.resources.projectManagers * p.durationWeeks * p.probability / 100), 0)
+                    },
+                    fullPipeline: calculateScenario(() => true),
+                    totalCapacity
+                };
+            }, [state.projects, state.settings.capacity]);
+
+            const ScenarioCard = ({ title, data, capacity }) => (
+                <div className="border rounded-lg p-6 bg-white shadow-sm">
+                    <h3 className="text-xl font-bold mb-4">{title}</h3>
+                    <div className="space-y-2">
+                        <div>
+                            <div className="flex justify-between">
+                                <span>DS: {Math.round(data.ds)} person-weeks</span>
+                                <span className={data.ds > capacity.ds ? 'text-red-600 font-bold' : 'text-green-600'}>
+                                    {Math.round((data.ds / capacity.ds) * 100)}%
+                                </span>
+                            </div>
+                            <div className="w-full bg-gray-200 rounded-full h-2 mt-1">
+                                <div
+                                    className={`h-2 rounded-full ${data.ds > capacity.ds ? 'bg-red-600' : 'bg-green-600'}`}
+                                    style={{ width: `${Math.min((data.ds / capacity.ds) * 100, 100)}%` }}
+                                />
+                            </div>
+                        </div>
+                        <div>
+                            <div className="flex justify-between">
+                                <span>GS: {Math.round(data.gs)} person-weeks</span>
+                                <span className={data.gs > capacity.gs ? 'text-red-600 font-bold' : 'text-green-600'}>
+                                    {Math.round((data.gs / capacity.gs) * 100)}%
+                                </span>
+                            </div>
+                            <div className="w-full bg-gray-200 rounded-full h-2 mt-1">
+                                <div
+                                    className={`h-2 rounded-full ${data.gs > capacity.gs ? 'bg-red-600' : 'bg-green-600'}`}
+                                    style={{ width: `${Math.min((data.gs / capacity.gs) * 100, 100)}%` }}
+                                />
+                            </div>
+                        </div>
+                        <div>
+                            <div className="flex justify-between">
+                                <span>PM: {Math.round(data.pm)} person-weeks</span>
+                                <span className={data.pm > capacity.pm ? 'text-red-600 font-bold' : 'text-green-600'}>
+                                    {Math.round((data.pm / capacity.pm) * 100)}%
+                                </span>
+                            </div>
+                            <div className="w-full bg-gray-200 rounded-full h-2 mt-1">
+                                <div
+                                    className={`h-2 rounded-full ${data.pm > capacity.pm ? 'bg-red-600' : 'bg-green-600'}`}
+                                    style={{ width: `${Math.min((data.pm / capacity.pm) * 100, 100)}%` }}
+                                />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+
+            return (
+                <div className="space-y-6">
+                    <div className="grid grid-cols-2 gap-6">
+                        <ScenarioCard
+                            title="Committed Only"
+                            data={scenarios.committed}
+                            capacity={scenarios.totalCapacity}
+                        />
+                        <ScenarioCard
+                            title="High Confidence"
+                            data={scenarios.highConfidence}
+                            capacity={scenarios.totalCapacity}
+                        />
+                        <ScenarioCard
+                            title="Expected Case (Probability-Weighted)"
+                            data={scenarios.expected}
+                            capacity={scenarios.totalCapacity}
+                        />
+                        <ScenarioCard
+                            title="Full Pipeline"
+                            data={scenarios.fullPipeline}
+                            capacity={scenarios.totalCapacity}
+                        />
+                    </div>
+                </div>
+            );
+        };
+
+        // Header Component
+        const Header = () => {
+            const { state, dispatch } = useContext(AppContext);
+            const [showSettings, setShowSettings] = useState(false);
+
+            const handleExport = () => {
+                const dataStr = JSON.stringify(state, null, 2);
+                const dataBlob = new Blob([dataStr], { type: 'application/json' });
+                const url = URL.createObjectURL(dataBlob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = `project-schedule-${new Date().toISOString().split('T')[0]}.json`;
+                link.click();
+                URL.revokeObjectURL(url);
+            };
+
+            const handleImport = () => {
+                const input = document.createElement('input');
+                input.type = 'file';
+                input.accept = '.json';
+                input.onchange = (e) => {
+                    const file = e.target.files[0];
+                    if (file) {
+                        const reader = new FileReader();
+                        reader.onload = (event) => {
+                            try {
+                                const imported = JSON.parse(event.target.result);
+                                if (confirm('Replace all data with imported data?')) {
+                                    dispatch({ type: 'LOAD_STATE', payload: imported });
+                                }
+                            } catch (error) {
+                                alert('Error importing file: ' + error.message);
+                            }
+                        };
+                        reader.readAsText(file);
+                    }
+                };
+                input.click();
+            };
+
+            const handleLoadSample = () => {
+                if (confirm('Load sample data? This will add sample projects.')) {
+                    dispatch({ type: 'LOAD_SAMPLE_DATA' });
+                }
+            };
+
+            return (
+                <div className="bg-white border-b shadow-sm">
+                    <div className="container mx-auto px-6 py-4">
+                        <div className="flex items-center justify-between mb-4">
+                            <h1 className="text-3xl font-bold">Project Scheduling Toolkit</h1>
+                            <div className="flex items-center gap-4">
+                                <button
+                                    onClick={() => dispatch({ type: 'SET_MODAL', payload: 'add' })}
+                                    className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                                >
+                                    + Add Project
+                                </button>
+                                <button
+                                    onClick={handleLoadSample}
+                                    className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700"
+                                >
+                                    Load Sample Data
+                                </button>
+                                <button
+                                    onClick={handleImport}
+                                    className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700"
+                                >
+                                    Import JSON
+                                </button>
+                                <button
+                                    onClick={handleExport}
+                                    className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700"
+                                >
+                                    Export JSON
+                                </button>
+                                <button
+                                    onClick={() => setShowSettings(true)}
+                                    className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700"
+                                >
+                                    ⚙️ Settings
+                                </button>
+                            </div>
+                        </div>
+                        <div className="flex items-center justify-between">
+                            <CapacityIndicator />
+                        </div>
+                    </div>
+                    {showSettings && <SettingsModal onClose={() => setShowSettings(false)} />}
+                </div>
+            );
+        };
+
+        // Main App Component
+        const App = () => {
+            const [state, dispatch] = useReducer(appReducer, initialState);
+
+            useEffect(() => {
+                const saved = localStorage.getItem('projectSchedulerState');
+                if (saved) {
+                    try {
+                        const parsed = JSON.parse(saved);
+                        if (confirm('Restore previous session?')) {
+                            dispatch({ type: 'LOAD_STATE', payload: parsed });
+                        }
+                    } catch (e) {
+                        console.error('Failed to restore state:', e);
+                    }
+                }
+            }, []);
+
+            useEffect(() => {
+                const interval = setInterval(() => {
+                    localStorage.setItem('projectSchedulerState', JSON.stringify(state));
+                }, 30000);
+                return () => clearInterval(interval);
+            }, [state]);
+
+            useEffect(() => {
+                const handleKeyDown = (e) => {
+                    if (e.key === 'Escape') {
+                        dispatch({ type: 'SET_MODAL', payload: null });
+                    } else if (e.key === 'n' && !e.target.matches('input, textarea')) {
+                        dispatch({ type: 'SET_MODAL', payload: 'add' });
+                    } else if (e.key >= '1' && e.key <= '4' && !e.target.matches('input, textarea')) {
+                        const tabs = ['list', 'timeline', 'resource', 'forecast'];
+                        dispatch({ type: 'SET_ACTIVE_TAB', payload: tabs[parseInt(e.key) - 1] });
+                    }
+                };
+                window.addEventListener('keydown', handleKeyDown);
+                return () => window.removeEventListener('keydown', handleKeyDown);
+            }, []);
+
+            return (
+                <AppContext.Provider value={{ state, dispatch }}>
+                    <div className="min-h-screen bg-gray-50">
+                        <Header />
+
+                        <div className="container mx-auto px-6 py-6">
+                            <div className="mb-6 flex border-b">
+                                <button
+                                    onClick={() => dispatch({ type: 'SET_ACTIVE_TAB', payload: 'list' })}
+                                    className={`px-6 py-3 font-medium ${state.ui.activeTab === 'list' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-600'}`}
+                                >
+                                    Project List
+                                </button>
+                                <button
+                                    onClick={() => dispatch({ type: 'SET_ACTIVE_TAB', payload: 'timeline' })}
+                                    className={`px-6 py-3 font-medium ${state.ui.activeTab === 'timeline' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-600'}`}
+                                >
+                                    Timeline
+                                </button>
+                                <button
+                                    onClick={() => dispatch({ type: 'SET_ACTIVE_TAB', payload: 'resource' })}
+                                    className={`px-6 py-3 font-medium ${state.ui.activeTab === 'resource' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-600'}`}
+                                >
+                                    Resource Allocation
+                                </button>
+                                <button
+                                    onClick={() => dispatch({ type: 'SET_ACTIVE_TAB', payload: 'forecast' })}
+                                    className={`px-6 py-3 font-medium ${state.ui.activeTab === 'forecast' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-600'}`}
+                                >
+                                    Forecast
+                                </button>
+                            </div>
+
+                            <div className="bg-white rounded-lg shadow p-6">
+                                {state.ui.activeTab === 'list' && <ProjectListView />}
+                                {state.ui.activeTab === 'timeline' && <TimelineView />}
+                                {state.ui.activeTab === 'resource' && <ResourceAllocationView />}
+                                {state.ui.activeTab === 'forecast' && <ForecastView />}
+                            </div>
+                        </div>
+
+                        {state.ui.modalOpen === 'add' && <AddProjectModal onClose={() => dispatch({ type: 'SET_MODAL', payload: null })} />}
+                        {state.ui.modalOpen && state.ui.modalOpen !== 'add' && (
+                            <ProjectDetailModal
+                                projectId={state.ui.modalOpen}
+                                onClose={() => dispatch({ type: 'SET_MODAL', payload: null })}
+                            />
+                        )}
+                    </div>
+                </AppContext.Provider>
+            );
+        };
+
+        // Render the app
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
