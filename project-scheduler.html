@@ -4,11 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Project Scheduling Toolkit</title>
-    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/recharts@2.5.0/dist/Recharts.js"></script>
     <style>
         .dragging {
             opacity: 0.5;
@@ -44,7 +43,6 @@
 
     <script type="text/babel">
         const { useState, useEffect, useReducer, createContext, useContext, useCallback, useMemo } = React;
-        const { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, BarChart, Bar } = Recharts;
 
         // UUID generator
         const generateId = () => {
@@ -1421,6 +1419,83 @@
             );
         };
 
+        // Simple Stacked Bar Chart Component
+        const SimpleStackedChart = ({ data, capacity, title, dataKeys }) => {
+            const [hoveredWeek, setHoveredWeek] = useState(null);
+
+            const maxValue = Math.max(capacity * 1.2, ...data.map(d =>
+                dataKeys.reduce((sum, key) => sum + (d[key] || 0), 0)
+            ));
+
+            return (
+                <div>
+                    <h3 className="text-lg font-bold mb-4">{title}</h3>
+                    <div className="relative bg-white border rounded p-4" style={{ height: '250px' }}>
+                        <div className="flex h-full items-end gap-px">
+                            {data.map((weekData, idx) => {
+                                const total = dataKeys.reduce((sum, key) => sum + (weekData[key] || 0), 0);
+                                const barHeight = (total / maxValue) * 100;
+
+                                return (
+                                    <div
+                                        key={idx}
+                                        className="flex-1 flex flex-col justify-end relative cursor-pointer"
+                                        onMouseEnter={() => setHoveredWeek(idx)}
+                                        onMouseLeave={() => setHoveredWeek(null)}
+                                        style={{ height: '100%' }}
+                                    >
+                                        <div className="flex flex-col justify-end" style={{ height: `${barHeight}%` }}>
+                                            <div className="bg-green-500" style={{ height: `${(weekData[dataKeys[0]] || 0) / total * 100}%` }} />
+                                            <div className="bg-blue-500" style={{ height: `${(weekData[dataKeys[1]] || 0) / total * 100}%` }} />
+                                            <div className="bg-amber-500" style={{ height: `${(weekData[dataKeys[2]] || 0) / total * 100}%` }} />
+                                            <div className="bg-gray-500" style={{ height: `${(weekData[dataKeys[3]] || 0) / total * 100}%` }} />
+                                        </div>
+
+                                        {hoveredWeek === idx && total > 0 && (
+                                            <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 bg-gray-900 text-white text-xs rounded px-2 py-1 whitespace-nowrap z-10">
+                                                <div className="font-bold">Week {weekData.week}</div>
+                                                <div className="text-green-300">Signed: {weekData[dataKeys[0]] || 0}</div>
+                                                <div className="text-blue-300">Close: {weekData[dataKeys[1]] || 0}</div>
+                                                <div className="text-amber-300">Interested: {weekData[dataKeys[2]] || 0}</div>
+                                                <div className="text-gray-300">Frontier: {weekData[dataKeys[3]] || 0}</div>
+                                                <div className="font-bold mt-1">Total: {total}</div>
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            })}
+                        </div>
+                        <div
+                            className="absolute left-0 right-0 border-t-2 border-red-500 border-dashed"
+                            style={{ bottom: `${(capacity / maxValue) * 100}%` }}
+                        >
+                            <span className="absolute right-0 -top-3 text-xs text-red-600 bg-white px-1">
+                                Capacity: {capacity}
+                            </span>
+                        </div>
+                    </div>
+                    <div className="flex gap-4 mt-2 text-xs">
+                        <div className="flex items-center gap-1">
+                            <div className="w-3 h-3 bg-green-500"></div>
+                            <span>Signed</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                            <div className="w-3 h-3 bg-blue-500"></div>
+                            <span>Close to Signing</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                            <div className="w-3 h-3 bg-amber-500"></div>
+                            <span>Interested</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                            <div className="w-3 h-3 bg-gray-500"></div>
+                            <span>Frontier</span>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
         // Resource Allocation View Component
         const ResourceAllocationView = () => {
             const { state } = useContext(AppContext);
@@ -1450,65 +1525,24 @@
 
             return (
                 <div className="space-y-8">
-                    <div>
-                        <h3 className="text-lg font-bold mb-4">Data Scientists</h3>
-                        <ResponsiveContainer width="100%" height={200}>
-                            <AreaChart data={chartData}>
-                                <CartesianGrid strokeDasharray="3 3" />
-                                <XAxis dataKey="week" />
-                                <YAxis />
-                                <Tooltip />
-                                <Legend />
-                                <Area type="monotone" dataKey="Signed_ds" stackId="1" stroke="#22c55e" fill="#22c55e" name="Signed" />
-                                <Area type="monotone" dataKey="Close to Signing_ds" stackId="1" stroke="#3b82f6" fill="#3b82f6" name="Close to Signing" />
-                                <Area type="monotone" dataKey="Interested_ds" stackId="1" stroke="#f59e0b" fill="#f59e0b" name="Interested" />
-                                <Area type="monotone" dataKey="Frontier_ds" stackId="1" stroke="#6b7280" fill="#6b7280" name="Frontier" />
-                            </AreaChart>
-                        </ResponsiveContainer>
-                        <div className="text-sm text-gray-600 mt-2">
-                            Capacity: {state.settings.capacity.dataScientists}
-                        </div>
-                    </div>
-
-                    <div>
-                        <h3 className="text-lg font-bold mb-4">Geoscientists</h3>
-                        <ResponsiveContainer width="100%" height={200}>
-                            <AreaChart data={chartData}>
-                                <CartesianGrid strokeDasharray="3 3" />
-                                <XAxis dataKey="week" />
-                                <YAxis />
-                                <Tooltip />
-                                <Legend />
-                                <Area type="monotone" dataKey="Signed_gs" stackId="1" stroke="#22c55e" fill="#22c55e" name="Signed" />
-                                <Area type="monotone" dataKey="Close to Signing_gs" stackId="1" stroke="#3b82f6" fill="#3b82f6" name="Close to Signing" />
-                                <Area type="monotone" dataKey="Interested_gs" stackId="1" stroke="#f59e0b" fill="#f59e0b" name="Interested" />
-                                <Area type="monotone" dataKey="Frontier_gs" stackId="1" stroke="#6b7280" fill="#6b7280" name="Frontier" />
-                            </AreaChart>
-                        </ResponsiveContainer>
-                        <div className="text-sm text-gray-600 mt-2">
-                            Capacity: {state.settings.capacity.geoscientists}
-                        </div>
-                    </div>
-
-                    <div>
-                        <h3 className="text-lg font-bold mb-4">Project Managers</h3>
-                        <ResponsiveContainer width="100%" height={200}>
-                            <AreaChart data={chartData}>
-                                <CartesianGrid strokeDasharray="3 3" />
-                                <XAxis dataKey="week" />
-                                <YAxis />
-                                <Tooltip />
-                                <Legend />
-                                <Area type="monotone" dataKey="Signed_pm" stackId="1" stroke="#22c55e" fill="#22c55e" name="Signed" />
-                                <Area type="monotone" dataKey="Close to Signing_pm" stackId="1" stroke="#3b82f6" fill="#3b82f6" name="Close to Signing" />
-                                <Area type="monotone" dataKey="Interested_pm" stackId="1" stroke="#f59e0b" fill="#f59e0b" name="Interested" />
-                                <Area type="monotone" dataKey="Frontier_pm" stackId="1" stroke="#6b7280" fill="#6b7280" name="Frontier" />
-                            </AreaChart>
-                        </ResponsiveContainer>
-                        <div className="text-sm text-gray-600 mt-2">
-                            Capacity: {state.settings.capacity.projectManagers}
-                        </div>
-                    </div>
+                    <SimpleStackedChart
+                        data={chartData}
+                        capacity={state.settings.capacity.dataScientists}
+                        title="Data Scientists"
+                        dataKeys={['Signed_ds', 'Close to Signing_ds', 'Interested_ds', 'Frontier_ds']}
+                    />
+                    <SimpleStackedChart
+                        data={chartData}
+                        capacity={state.settings.capacity.geoscientists}
+                        title="Geoscientists"
+                        dataKeys={['Signed_gs', 'Close to Signing_gs', 'Interested_gs', 'Frontier_gs']}
+                    />
+                    <SimpleStackedChart
+                        data={chartData}
+                        capacity={state.settings.capacity.projectManagers}
+                        title="Project Managers"
+                        dataKeys={['Signed_pm', 'Close to Signing_pm', 'Interested_pm', 'Frontier_pm']}
+                    />
                 </div>
             );
         };
