@@ -1,0 +1,127 @@
+{
+  "settings": {
+    "capacity": {
+      "dataScientists": 10,
+      "geoscientists": 5,
+      "projectManagers": 2
+    },
+    "defaultProbabilities": {
+      "signed": 95,
+      "closeToSigning": 70,
+      "interested": 40,
+      "frontier": 15
+    }
+  },
+  "projects": [
+    {
+      "id": "test-001",
+      "name": "Basic Project Alpha",
+      "sponsor": "Alice Smith",
+      "description": "Simple test project with balanced resources",
+      "okr": "Revenue",
+      "source": "External",
+      "stage": "Signed",
+      "probability": 95,
+      "impact": "High",
+      "effort": "M",
+      "durationWeeks": 4,
+      "resources": {
+        "dataScientists": 2,
+        "geoscientists": 1,
+        "projectManagers": 1
+      },
+      "startWeek": 1,
+      "dependencies": [],
+      "observations": {
+        "positive": [
+          {
+            "text": "Executive sponsor fully committed",
+            "likelihood": "High",
+            "timestamp": "2026-01-15T10:00:00Z"
+          }
+        ],
+        "negative": []
+      },
+      "createdAt": "2026-01-10T09:00:00Z",
+      "updatedAt": "2026-01-15T10:00:00Z"
+    },
+    {
+      "id": "test-002",
+      "name": "Basic Project Beta",
+      "sponsor": "Bob Johnson",
+      "description": "Second simple project starting later",
+      "okr": "Projects",
+      "source": "Internal",
+      "stage": "Signed",
+      "probability": 95,
+      "impact": "Medium",
+      "effort": "S",
+      "durationWeeks": 3,
+      "resources": {
+        "dataScientists": 1,
+        "geoscientists": 1,
+        "projectManagers": 0
+      },
+      "startWeek": 10,
+      "dependencies": [],
+      "observations": {
+        "positive": [],
+        "negative": []
+      },
+      "createdAt": "2026-01-12T11:00:00Z",
+      "updatedAt": "2026-01-12T11:00:00Z"
+    },
+    {
+      "id": "test-003",
+      "name": "Unscheduled Frontier",
+      "sponsor": "Carol Williams",
+      "description": "Low probability unscheduled project",
+      "okr": "Innovation",
+      "source": "External",
+      "stage": "Frontier",
+      "probability": 15,
+      "impact": "High",
+      "effort": "L",
+      "durationWeeks": 8,
+      "resources": {
+        "dataScientists": 3,
+        "geoscientists": 2,
+        "projectManagers": 1
+      },
+      "startWeek": null,
+      "dependencies": [],
+      "observations": {
+        "positive": [
+          {
+            "text": "Interesting market opportunity",
+            "likelihood": "Medium",
+            "timestamp": "2026-01-14T14:00:00Z"
+          }
+        ],
+        "negative": [
+          {
+            "text": "Budget not yet approved",
+            "likelihood": "High",
+            "timestamp": "2026-01-14T15:00:00Z"
+          }
+        ]
+      },
+      "createdAt": "2026-01-14T13:00:00Z",
+      "updatedAt": "2026-01-14T15:00:00Z"
+    }
+  ],
+  "ui": {
+    "activeTab": "list",
+    "filters": {
+      "search": "",
+      "stages": [],
+      "okrs": [],
+      "sources": [],
+      "scheduled": null
+    },
+    "selectedProjectId": null,
+    "modalOpen": null,
+    "timelineGroupBy": "stage",
+    "timelineZoom": "year"
+  }
+}
