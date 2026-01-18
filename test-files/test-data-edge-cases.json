@@ -1,0 +1,464 @@
+{
+  "settings": {
+    "capacity": {
+      "dataScientists": 12,
+      "geoscientists": 6,
+      "projectManagers": 3
+    },
+    "defaultProbabilities": {
+      "signed": 95,
+      "closeToSigning": 70,
+      "interested": 40,
+      "frontier": 15
+    }
+  },
+  "projects": [
+    {
+      "id": "edge-001",
+      "name": "Tiny Sprint Project",
+      "sponsor": "Agile Team Lead",
+      "description": "Minimum 1-week project",
+      "okr": "Innovation",
+      "source": "Internal",
+      "stage": "Signed",
+      "probability": 95,
+      "impact": "Low",
+      "effort": "S",
+      "durationWeeks": 1,
+      "resources": {
+        "dataScientists": 1,
+        "geoscientists": 0,
+        "projectManagers": 0
+      },
+      "startWeek": 1,
+      "dependencies": [],
+      "observations": {
+        "positive": [],
+        "negative": []
+      },
+      "createdAt": "2026-01-15T09:00:00Z",
+      "updatedAt": "2026-01-15T09:00:00Z"
+    },
+    {
+      "id": "edge-002",
+      "name": "Marathon Year-Long Project",
+      "sponsor": "Program Director",
+      "description": "52-week project spanning entire year",
+      "okr": "Projects",
+      "source": "External",
+      "stage": "Signed",
+      "probability": 95,
+      "impact": "High",
+      "effort": "L",
+      "durationWeeks": 52,
+      "resources": {
+        "dataScientists": 2,
+        "geoscientists": 1,
+        "projectManagers": 1
+      },
+      "startWeek": 1,
+      "dependencies": [],
+      "observations": {
+        "positive": [
+          {
+            "text": "Multi-year contract with guaranteed funding",
+            "likelihood": "High",
+            "timestamp": "2026-01-10T10:00:00Z"
+          }
+        ],
+        "negative": [
+          {
+            "text": "Long commitment ties up resources",
+            "likelihood": "Medium",
+            "timestamp": "2026-01-11T09:00:00Z"
+          }
+        ]
+      },
+      "createdAt": "2026-01-10T09:00:00Z",
+      "updatedAt": "2026-01-11T09:00:00Z"
+    },
+    {
+      "id": "edge-003",
+      "name": "Zero Resource Project",
+      "sponsor": "Strategy Team",
+      "description": "Planning-only project with no direct resource needs",
+      "okr": "Innovation",
+      "source": "Internal",
+      "stage": "Signed",
+      "probability": 95,
+      "impact": "Low",
+      "effort": "S",
+      "durationWeeks": 2,
+      "resources": {
+        "dataScientists": 0,
+        "geoscientists": 0,
+        "projectManagers": 0
+      },
+      "startWeek": 10,
+      "dependencies": [],
+      "observations": {
+        "positive": [],
+        "negative": []
+      },
+      "createdAt": "2026-01-12T11:00:00Z",
+      "updatedAt": "2026-01-12T11:00:00Z"
+    },
+    {
+      "id": "edge-004",
+      "name": "Resource Intensive Megaproject",
+      "sponsor": "VP Engineering",
+      "description": "Maximum resource utilization test",
+      "okr": "Revenue",
+      "source": "External",
+      "stage": "Close to Signing",
+      "probability": 70,
+      "impact": "High",
+      "effort": "L",
+      "durationWeeks": 12,
+      "resources": {
+        "dataScientists": 10,
+        "geoscientists": 5,
+        "projectManagers": 3
+      },
+      "startWeek": null,
+      "dependencies": [],
+      "observations": {
+        "positive": [
+          {
+            "text": "Largest deal in company history",
+            "likelihood": "High",
+            "timestamp": "2026-01-14T15:00:00Z"
+          }
+        ],
+        "negative": [
+          {
+            "text": "Would require nearly all available resources",
+            "likelihood": "High",
+            "timestamp": "2026-01-15T10:00:00Z"
+          },
+          {
+            "text": "May need to hire additional staff",
+            "likelihood": "Medium",
+            "timestamp": "2026-01-15T11:00:00Z"
+          }
+        ]
+      },
+      "createdAt": "2026-01-14T14:00:00Z",
+      "updatedAt": "2026-01-15T11:00:00Z"
+    },
+    {
+      "id": "edge-005",
+      "name": "Late Year Start Project",
+      "sponsor": "Q4 Sales",
+      "description": "Project starting in week 50",
+      "okr": "Revenue",
+      "source": "External",
+      "stage": "Signed",
+      "probability": 95,
+      "impact": "Medium",
+      "effort": "S",
+      "durationWeeks": 3,
+      "resources": {
+        "dataScientists": 2,
+        "geoscientists": 1,
+        "projectManagers": 0
+      },
+      "startWeek": 50,
+      "dependencies": [],
+      "observations": {
+        "positive": [],
+        "negative": [
+          {
+            "text": "Will extend into next year",
+            "likelihood": "High",
+            "timestamp": "2026-01-16T10:00:00Z"
+          }
+        ]
+      },
+      "createdAt": "2026-01-16T09:00:00Z",
+      "updatedAt": "2026-01-16T10:00:00Z"
+    },
+    {
+      "id": "edge-006",
+      "name": "Foundation Project",
+      "sponsor": "Architecture Team",
+      "description": "Base project that others depend on",
+      "okr": "Innovation",
+      "source": "Internal",
+      "stage": "Signed",
+      "probability": 95,
+      "impact": "High",
+      "effort": "M",
+      "durationWeeks": 6,
+      "resources": {
+        "dataScientists": 3,
+        "geoscientists": 0,
+        "projectManagers": 1
+      },
+      "startWeek": 5,
+      "dependencies": [],
+      "observations": {
+        "positive": [
+          {
+            "text": "Critical dependency for other projects",
+            "likelihood": "High",
+            "timestamp": "2026-01-13T09:00:00Z"
+          }
+        ],
+        "negative": []
+      },
+      "createdAt": "2026-01-13T08:00:00Z",
+      "updatedAt": "2026-01-13T09:00:00Z"
+    },
+    {
+      "id": "edge-007",
+      "name": "Dependent Project Alpha",
+      "sponsor": "Product Manager A",
+      "description": "Depends on Foundation Project",
+      "okr": "Projects",
+      "source": "Internal",
+      "stage": "Signed",
+      "probability": 95,
+      "impact": "Medium",
+      "effort": "M",
+      "durationWeeks": 4,
+      "resources": {
+        "dataScientists": 2,
+        "geoscientists": 1,
+        "projectManagers": 0
+      },
+      "startWeek": 12,
+      "dependencies": ["edge-006"],
+      "observations": {
+        "positive": [],
+        "negative": [
+          {
+            "text": "Cannot start until Foundation Project completes",
+            "likelihood": "High",
+            "timestamp": "2026-01-14T10:00:00Z"
+          }
+        ]
+      },
+      "createdAt": "2026-01-14T09:00:00Z",
+      "updatedAt": "2026-01-14T10:00:00Z"
+    },
+    {
+      "id": "edge-008",
+      "name": "Dependent Project Beta",
+      "sponsor": "Product Manager B",
+      "description": "Also depends on Foundation Project",
+      "okr": "Projects",
+      "source": "Internal",
+      "stage": "Close to Signing",
+      "probability": 70,
+      "impact": "Medium",
+      "effort": "S",
+      "durationWeeks": 3,
+      "resources": {
+        "dataScientists": 2,
+        "geoscientists": 0,
+        "projectManagers": 1
+      },
+      "startWeek": null,
+      "dependencies": ["edge-006"],
+      "observations": {
+        "positive": [],
+        "negative": []
+      },
+      "createdAt": "2026-01-14T11:00:00Z",
+      "updatedAt": "2026-01-14T11:00:00Z"
+    },
+    {
+      "id": "edge-009",
+      "name": "Probability Edge: 0%",
+      "sponsor": "Test User",
+      "description": "Project with 0% probability (cancelled but tracked)",
+      "okr": "Revenue",
+      "source": "External",
+      "stage": "Frontier",
+      "probability": 0,
+      "impact": "Low",
+      "effort": "S",
+      "durationWeeks": 4,
+      "resources": {
+        "dataScientists": 1,
+        "geoscientists": 1,
+        "projectManagers": 0
+      },
+      "startWeek": null,
+      "dependencies": [],
+      "observations": {
+        "positive": [],
+        "negative": [
+          {
+            "text": "Client lost funding",
+            "likelihood": "High",
+            "timestamp": "2026-01-17T15:00:00Z"
+          },
+          {
+            "text": "Project effectively dead",
+            "likelihood": "High",
+            "timestamp": "2026-01-17T16:00:00Z"
+          }
+        ]
+      },
+      "createdAt": "2026-01-15T10:00:00Z",
+      "updatedAt": "2026-01-17T16:00:00Z"
+    },
+    {
+      "id": "edge-010",
+      "name": "Probability Edge: 100%",
+      "sponsor": "Test User",
+      "description": "Project manually set to 100% (absolute certainty)",
+      "okr": "Projects",
+      "source": "Internal",
+      "stage": "Signed",
+      "probability": 100,
+      "impact": "High",
+      "effort": "M",
+      "durationWeeks": 5,
+      "resources": {
+        "dataScientists": 3,
+        "geoscientists": 2,
+        "projectManagers": 1
+      },
+      "startWeek": 20,
+      "dependencies": [],
+      "observations": {
+        "positive": [
+          {
+            "text": "Board-mandated initiative",
+            "likelihood": "High",
+            "timestamp": "2026-01-16T09:00:00Z"
+          },
+          {
+            "text": "No way this gets cancelled",
+            "likelihood": "High",
+            "timestamp": "2026-01-16T10:00:00Z"
+          }
+        ],
+        "negative": []
+      },
+      "createdAt": "2026-01-16T08:00:00Z",
+      "updatedAt": "2026-01-16T10:00:00Z"
+    },
+    {
+      "id": "edge-011",
+      "name": "Maximum Observations Project",
+      "sponsor": "Test Lead",
+      "description": "Project with many observations to test UI",
+      "okr": "Innovation",
+      "source": "External",
+      "stage": "Interested",
+      "probability": 40,
+      "impact": "Medium",
+      "effort": "M",
+      "durationWeeks": 6,
+      "resources": {
+        "dataScientists": 2,
+        "geoscientists": 1,
+        "projectManagers": 1
+      },
+      "startWeek": null,
+      "dependencies": [],
+      "observations": {
+        "positive": [
+          {
+            "text": "Strong technical alignment",
+            "likelihood": "High",
+            "timestamp": "2026-01-10T09:00:00Z"
+          },
+          {
+            "text": "Executive sponsor identified",
+            "likelihood": "Medium",
+            "timestamp": "2026-01-11T10:00:00Z"
+          },
+          {
+            "text": "Fits their strategic roadmap",
+            "likelihood": "High",
+            "timestamp": "2026-01-12T11:00:00Z"
+          },
+          {
+            "text": "Similar past projects succeeded",
+            "likelihood": "Medium",
+            "timestamp": "2026-01-13T09:00:00Z"
+          },
+          {
+            "text": "Team excited about opportunity",
+            "likelihood": "Low",
+            "timestamp": "2026-01-14T10:00:00Z"
+          }
+        ],
+        "negative": [
+          {
+            "text": "Budget cycle timing uncertain",
+            "likelihood": "High",
+            "timestamp": "2026-01-10T14:00:00Z"
+          },
+          {
+            "text": "Multiple stakeholders to align",
+            "likelihood": "Medium",
+            "timestamp": "2026-01-11T15:00:00Z"
+          },
+          {
+            "text": "Competing with other vendors",
+            "likelihood": "High",
+            "timestamp": "2026-01-12T16:00:00Z"
+          },
+          {
+            "text": "Technical risks to address",
+            "likelihood": "Low",
+            "timestamp": "2026-01-13T14:00:00Z"
+          },
+          {
+            "text": "Requires custom development",
+            "likelihood": "Medium",
+            "timestamp": "2026-01-14T15:00:00Z"
+          }
+        ]
+      },
+      "createdAt": "2026-01-10T08:00:00Z",
+      "updatedAt": "2026-01-14T15:00:00Z"
+    },
+    {
+      "id": "edge-012",
+      "name": "All Resource Types Project",
+      "sponsor": "Balanced Team Lead",
+      "description": "Uses all three resource types equally",
+      "okr": "Projects",
+      "source": "External",
+      "stage": "Signed",
+      "probability": 95,
+      "impact": "High",
+      "effort": "L",
+      "durationWeeks": 9,
+      "resources": {
+        "dataScientists": 3,
+        "geoscientists": 3,
+        "projectManagers": 3
+      },
+      "startWeek": 25,
+      "dependencies": [],
+      "observations": {
+        "positive": [],
+        "negative": []
+      },
+      "createdAt": "2026-01-17T09:00:00Z",
+      "updatedAt": "2026-01-17T09:00:00Z"
+    }
+  ],
+  "ui": {
+    "activeTab": "timeline",
+    "filters": {
+      "search": "",
+      "stages": [],
+      "okrs": [],
+      "sources": [],
+      "scheduled": null
+    },
+    "selectedProjectId": null,
+    "modalOpen": null,
+    "timelineGroupBy": "none",
+    "timelineZoom": "year"
+  }
+}
