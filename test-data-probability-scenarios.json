@@ -1,0 +1,421 @@
+{
+  "settings": {
+    "capacity": {
+      "dataScientists": 20,
+      "geoscientists": 10,
+      "projectManagers": 5
+    },
+    "defaultProbabilities": {
+      "signed": 95,
+      "closeToSigning": 70,
+      "interested": 40,
+      "frontier": 15
+    }
+  },
+  "projects": [
+    {
+      "id": "prob-001",
+      "name": "Guaranteed Revenue Project",
+      "sponsor": "CEO",
+      "description": "Signed contract, 95% probability",
+      "okr": "Revenue",
+      "source": "External",
+      "stage": "Signed",
+      "probability": 95,
+      "impact": "High",
+      "effort": "L",
+      "durationWeeks": 10,
+      "resources": {
+        "dataScientists": 5,
+        "geoscientists": 3,
+        "projectManagers": 2
+      },
+      "startWeek": 1,
+      "dependencies": [],
+      "observations": {
+        "positive": [
+          {
+            "text": "Contract executed and signed",
+            "likelihood": "High",
+            "timestamp": "2026-01-05T09:00:00Z"
+          },
+          {
+            "text": "Client eager to start immediately",
+            "likelihood": "High",
+            "timestamp": "2026-01-06T10:00:00Z"
+          }
+        ],
+        "negative": []
+      },
+      "createdAt": "2026-01-05T08:00:00Z",
+      "updatedAt": "2026-01-06T10:00:00Z"
+    },
+    {
+      "id": "prob-002",
+      "name": "Another Signed Project",
+      "sponsor": "VP Operations",
+      "description": "Second signed project, also 95%",
+      "okr": "Projects",
+      "source": "External",
+      "stage": "Signed",
+      "probability": 95,
+      "impact": "High",
+      "effort": "M",
+      "durationWeeks": 8,
+      "resources": {
+        "dataScientists": 4,
+        "geoscientists": 2,
+        "projectManagers": 1
+      },
+      "startWeek": 15,
+      "dependencies": [],
+      "observations": {
+        "positive": [],
+        "negative": []
+      },
+      "createdAt": "2026-01-08T09:00:00Z",
+      "updatedAt": "2026-01-08T09:00:00Z"
+    },
+    {
+      "id": "prob-003",
+      "name": "Almost There Deal",
+      "sponsor": "Sales Director",
+      "description": "Close to signing, 70% probability",
+      "okr": "Revenue",
+      "source": "External",
+      "stage": "Close to Signing",
+      "probability": 70,
+      "impact": "High",
+      "effort": "L",
+      "durationWeeks": 12,
+      "resources": {
+        "dataScientists": 6,
+        "geoscientists": 4,
+        "projectManagers": 2
+      },
+      "startWeek": null,
+      "dependencies": [],
+      "observations": {
+        "positive": [
+          {
+            "text": "Verbal commitment received",
+            "likelihood": "High",
+            "timestamp": "2026-01-10T14:00:00Z"
+          },
+          {
+            "text": "Budget approved on client side",
+            "likelihood": "Medium",
+            "timestamp": "2026-01-11T09:00:00Z"
+          }
+        ],
+        "negative": [
+          {
+            "text": "Waiting on legal review",
+            "likelihood": "Medium",
+            "timestamp": "2026-01-12T11:00:00Z"
+          }
+        ]
+      },
+      "createdAt": "2026-01-10T13:00:00Z",
+      "updatedAt": "2026-01-12T11:00:00Z"
+    },
+    {
+      "id": "prob-004",
+      "name": "Pipeline Prospect A",
+      "sponsor": "Business Development",
+      "description": "Close to signing, 70%",
+      "okr": "Revenue",
+      "source": "External",
+      "stage": "Close to Signing",
+      "probability": 70,
+      "impact": "Medium",
+      "effort": "M",
+      "durationWeeks": 6,
+      "resources": {
+        "dataScientists": 3,
+        "geoscientists": 2,
+        "projectManagers": 1
+      },
+      "startWeek": null,
+      "dependencies": [],
+      "observations": {
+        "positive": [
+          {
+            "text": "Proposal accepted",
+            "likelihood": "High",
+            "timestamp": "2026-01-13T10:00:00Z"
+          }
+        ],
+        "negative": []
+      },
+      "createdAt": "2026-01-12T15:00:00Z",
+      "updatedAt": "2026-01-13T10:00:00Z"
+    },
+    {
+      "id": "prob-005",
+      "name": "Interested Party Project",
+      "sponsor": "Account Manager",
+      "description": "Interested stage, 40% probability",
+      "okr": "Revenue",
+      "source": "External",
+      "stage": "Interested",
+      "probability": 40,
+      "impact": "Medium",
+      "effort": "M",
+      "durationWeeks": 8,
+      "resources": {
+        "dataScientists": 4,
+        "geoscientists": 3,
+        "projectManagers": 1
+      },
+      "startWeek": null,
+      "dependencies": [],
+      "observations": {
+        "positive": [
+          {
+            "text": "Initial meetings went well",
+            "likelihood": "Medium",
+            "timestamp": "2026-01-14T13:00:00Z"
+          }
+        ],
+        "negative": [
+          {
+            "text": "They're evaluating multiple vendors",
+            "likelihood": "High",
+            "timestamp": "2026-01-14T14:00:00Z"
+          },
+          {
+            "text": "Budget uncertainty",
+            "likelihood": "Medium",
+            "timestamp": "2026-01-15T09:00:00Z"
+          }
+        ]
+      },
+      "createdAt": "2026-01-14T12:00:00Z",
+      "updatedAt": "2026-01-15T09:00:00Z"
+    },
+    {
+      "id": "prob-006",
+      "name": "Maybe Project",
+      "sponsor": "New Client",
+      "description": "Interested, adjusted to 50% based on observations",
+      "okr": "Projects",
+      "source": "External",
+      "stage": "Interested",
+      "probability": 50,
+      "impact": "Low",
+      "effort": "S",
+      "durationWeeks": 4,
+      "resources": {
+        "dataScientists": 2,
+        "geoscientists": 1,
+        "projectManagers": 0
+      },
+      "startWeek": null,
+      "dependencies": [],
+      "observations": {
+        "positive": [
+          {
+            "text": "Strong technical fit",
+            "likelihood": "High",
+            "timestamp": "2026-01-15T11:00:00Z"
+          },
+          {
+            "text": "Decision maker engaged",
+            "likelihood": "Medium",
+            "timestamp": "2026-01-16T10:00:00Z"
+          }
+        ],
+        "negative": [
+          {
+            "text": "Timeline unclear",
+            "likelihood": "Low",
+            "timestamp": "2026-01-16T11:00:00Z"
+          }
+        ]
+      },
+      "createdAt": "2026-01-15T10:00:00Z",
+      "updatedAt": "2026-01-16T11:00:00Z"
+    },
+    {
+      "id": "prob-007",
+      "name": "Frontier Exploration A",
+      "sponsor": "R&D Team",
+      "description": "Early stage frontier, 15%",
+      "okr": "Innovation",
+      "source": "Internal",
+      "stage": "Frontier",
+      "probability": 15,
+      "impact": "High",
+      "effort": "L",
+      "durationWeeks": 16,
+      "resources": {
+        "dataScientists": 5,
+        "geoscientists": 3,
+        "projectManagers": 1
+      },
+      "startWeek": null,
+      "dependencies": [],
+      "observations": {
+        "positive": [
+          {
+            "text": "Cutting edge opportunity",
+            "likelihood": "Low",
+            "timestamp": "2026-01-16T13:00:00Z"
+          }
+        ],
+        "negative": [
+          {
+            "text": "Unproven market",
+            "likelihood": "High",
+            "timestamp": "2026-01-16T14:00:00Z"
+          },
+          {
+            "text": "Requires new capabilities",
+            "likelihood": "High",
+            "timestamp": "2026-01-17T09:00:00Z"
+          }
+        ]
+      },
+      "createdAt": "2026-01-16T12:00:00Z",
+      "updatedAt": "2026-01-17T09:00:00Z"
+    },
+    {
+      "id": "prob-008",
+      "name": "Frontier Exploration B",
+      "sponsor": "Innovation Lead",
+      "description": "Frontier with adjusted 25% probability",
+      "okr": "Innovation",
+      "source": "Internal",
+      "stage": "Frontier",
+      "probability": 25,
+      "impact": "Medium",
+      "effort": "M",
+      "durationWeeks": 10,
+      "resources": {
+        "dataScientists": 3,
+        "geoscientists": 2,
+        "projectManagers": 1
+      },
+      "startWeek": null,
+      "dependencies": [],
+      "observations": {
+        "positive": [
+          {
+            "text": "Executive interest expressed",
+            "likelihood": "Medium",
+            "timestamp": "2026-01-17T11:00:00Z"
+          },
+          {
+            "text": "Aligns with strategic goals",
+            "likelihood": "High",
+            "timestamp": "2026-01-17T12:00:00Z"
+          }
+        ],
+        "negative": [
+          {
+            "text": "No budget allocated yet",
+            "likelihood": "High",
+            "timestamp": "2026-01-17T13:00:00Z"
+          }
+        ]
+      },
+      "createdAt": "2026-01-17T10:00:00Z",
+      "updatedAt": "2026-01-17T13:00:00Z"
+    },
+    {
+      "id": "prob-009",
+      "name": "Long Shot Opportunity",
+      "sponsor": "Strategic Partnerships",
+      "description": "Frontier with low 10% probability",
+      "okr": "Revenue",
+      "source": "External",
+      "stage": "Frontier",
+      "probability": 10,
+      "impact": "High",
+      "effort": "L",
+      "durationWeeks": 20,
+      "resources": {
+        "dataScientists": 8,
+        "geoscientists": 5,
+        "projectManagers": 2
+      },
+      "startWeek": null,
+      "dependencies": [],
+      "observations": {
+        "positive": [
+          {
+            "text": "Huge potential if it happens",
+            "likelihood": "Low",
+            "timestamp": "2026-01-17T15:00:00Z"
+          }
+        ],
+        "negative": [
+          {
+            "text": "Many dependencies outside our control",
+            "likelihood": "High",
+            "timestamp": "2026-01-17T16:00:00Z"
+          },
+          {
+            "text": "Client organization in flux",
+            "likelihood": "High",
+            "timestamp": "2026-01-18T09:00:00Z"
+          },
+          {
+            "text": "Competing priorities on client side",
+            "likelihood": "Medium",
+            "timestamp": "2026-01-18T10:00:00Z"
+          }
+        ]
+      },
+      "createdAt": "2026-01-17T14:00:00Z",
+      "updatedAt": "2026-01-18T10:00:00Z"
+    },
+    {
+      "id": "prob-010",
+      "name": "Internal Innovation Initiative",
+      "sponsor": "CTO",
+      "description": "Internal project, signed and scheduled",
+      "okr": "Innovation",
+      "source": "Internal",
+      "stage": "Signed",
+      "probability": 95,
+      "impact": "Medium",
+      "effort": "M",
+      "durationWeeks": 6,
+      "resources": {
+        "dataScientists": 3,
+        "geoscientists": 0,
+        "projectManagers": 1
+      },
+      "startWeek": 30,
+      "dependencies": [],
+      "observations": {
+        "positive": [
+          {
+            "text": "Budget approved in annual planning",
+            "likelihood": "High",
+            "timestamp": "2026-01-10T08:00:00Z"
+          }
+        ],
+        "negative": []
+      },
+      "createdAt": "2026-01-10T07:00:00Z",
+      "updatedAt": "2026-01-10T08:00:00Z"
+    }
+  ],
+  "ui": {
+    "activeTab": "forecast",
+    "filters": {
+      "search": "",
+      "stages": [],
+      "okrs": [],
+      "sources": [],
+      "scheduled": null
+    },
+    "selectedProjectId": null,
+    "modalOpen": null,
+    "timelineGroupBy": "stage",
+    "timelineZoom": "year"
+  }
+}
