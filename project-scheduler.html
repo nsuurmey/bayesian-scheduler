@@ -424,10 +424,12 @@
                                     <label className="block text-sm font-medium mb-1">Data Scientists</label>
                                     <input
                                         type="number"
+                                        step="0.25"
+                                        min="0"
                                         value={localSettings.capacity.dataScientists}
                                         onChange={(e) => setLocalSettings({
                                             ...localSettings,
-                                            capacity: { ...localSettings.capacity, dataScientists: parseInt(e.target.value) }
+                                            capacity: { ...localSettings.capacity, dataScientists: parseFloat(e.target.value) || 0 }
                                         })}
                                         className="w-full px-3 py-2 border border-gray-300 rounded-md"
                                     />
@@ -436,10 +438,12 @@
                                     <label className="block text-sm font-medium mb-1">Geoscientists</label>
                                     <input
                                         type="number"
+                                        step="0.25"
+                                        min="0"
                                         value={localSettings.capacity.geoscientists}
                                         onChange={(e) => setLocalSettings({
                                             ...localSettings,
-                                            capacity: { ...localSettings.capacity, geoscientists: parseInt(e.target.value) }
+                                            capacity: { ...localSettings.capacity, geoscientists: parseFloat(e.target.value) || 0 }
                                         })}
                                         className="w-full px-3 py-2 border border-gray-300 rounded-md"
                                     />
@@ -448,10 +452,12 @@
                                     <label className="block text-sm font-medium mb-1">Project Managers</label>
                                     <input
                                         type="number"
+                                        step="0.25"
+                                        min="0"
                                         value={localSettings.capacity.projectManagers}
                                         onChange={(e) => setLocalSettings({
                                             ...localSettings,
-                                            capacity: { ...localSettings.capacity, projectManagers: parseInt(e.target.value) }
+                                            capacity: { ...localSettings.capacity, projectManagers: parseFloat(e.target.value) || 0 }
                                         })}
                                         className="w-full px-3 py-2 border border-gray-300 rounded-md"
                                     />
@@ -719,16 +725,18 @@
                         </div>
 
                         <div className="mb-4">
-                            <label className="block text-sm font-medium mb-2">Resources</label>
+                            <label className="block text-sm font-medium mb-2">Resources (0.25 increments)</label>
                             <div className="grid grid-cols-3 gap-4">
                                 <div>
                                     <label className="block text-xs text-gray-600 mb-1">Data Scientists</label>
                                     <input
                                         type="number"
+                                        step="0.25"
+                                        min="0"
                                         value={formData.resources?.dataScientists || 0}
                                         onChange={(e) => setFormData({
                                             ...formData,
-                                            resources: { ...formData.resources, dataScientists: parseInt(e.target.value) || 0 }
+                                            resources: { ...formData.resources, dataScientists: parseFloat(e.target.value) || 0 }
                                         })}
                                         className="w-full px-3 py-2 border border-gray-300 rounded-md"
                                     />
@@ -737,10 +745,12 @@
                                     <label className="block text-xs text-gray-600 mb-1">Geoscientists</label>
                                     <input
                                         type="number"
+                                        step="0.25"
+                                        min="0"
                                         value={formData.resources?.geoscientists || 0}
                                         onChange={(e) => setFormData({
                                             ...formData,
-                                            resources: { ...formData.resources, geoscientists: parseInt(e.target.value) || 0 }
+                                            resources: { ...formData.resources, geoscientists: parseFloat(e.target.value) || 0 }
                                         })}
                                         className="w-full px-3 py-2 border border-gray-300 rounded-md"
                                     />
@@ -749,10 +759,12 @@
                                     <label className="block text-xs text-gray-600 mb-1">Project Managers</label>
                                     <input
                                         type="number"
+                                        step="0.25"
+                                        min="0"
                                         value={formData.resources?.projectManagers || 0}
                                         onChange={(e) => setFormData({
                                             ...formData,
-                                            resources: { ...formData.resources, projectManagers: parseInt(e.target.value) || 0 }
+                                            resources: { ...formData.resources, projectManagers: parseFloat(e.target.value) || 0 }
                                         })}
                                         className="w-full px-3 py-2 border border-gray-300 rounded-md"
                                     />
@@ -1036,10 +1048,12 @@
                                         <label className="block text-sm font-medium mb-1">Data Scientists</label>
                                         <input
                                             type="number"
+                                            step="0.25"
+                                            min="0"
                                             value={formData.resources.dataScientists}
                                             onChange={(e) => setFormData({
                                                 ...formData,
-                                                resources: { ...formData.resources, dataScientists: parseInt(e.target.value) || 0 }
+                                                resources: { ...formData.resources, dataScientists: parseFloat(e.target.value) || 0 }
                                             })}
                                             className="w-full px-3 py-2 border border-gray-300 rounded-md"
                                         />
@@ -1048,10 +1062,12 @@
                                         <label className="block text-sm font-medium mb-1">Geoscientists</label>
                                         <input
                                             type="number"
+                                            step="0.25"
+                                            min="0"
                                             value={formData.resources.geoscientists}
                                             onChange={(e) => setFormData({
                                                 ...formData,
-                                                resources: { ...formData.resources, geoscientists: parseInt(e.target.value) || 0 }
+                                                resources: { ...formData.resources, geoscientists: parseFloat(e.target.value) || 0 }
                                             })}
                                             className="w-full px-3 py-2 border border-gray-300 rounded-md"
                                         />
@@ -1060,10 +1076,12 @@
                                         <label className="block text-sm font-medium mb-1">Project Managers</label>
                                         <input
                                             type="number"
+                                            step="0.25"
+                                            min="0"
                                             value={formData.resources.projectManagers}
                                             onChange={(e) => setFormData({
                                                 ...formData,
-                                                resources: { ...formData.resources, projectManagers: parseInt(e.target.value) || 0 }
+                                                resources: { ...formData.resources, projectManagers: parseFloat(e.target.value) || 0 }
                                             })}
                                             className="w-full px-3 py-2 border border-gray-300 rounded-md"
                                         />
