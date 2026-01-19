@@ -53,6 +53,57 @@
             });
         };
 
+        // Date helper functions for 2026 calendar
+        const YEAR_2026_START = new Date('2026-01-01');
+
+        const getDateFromWeek = (week) => {
+            const date = new Date(YEAR_2026_START);
+            date.setDate(date.getDate() + (week - 1) * 7);
+            return date;
+        };
+
+        const formatDate = (date) => {
+            const month = date.toLocaleDateString('en-US', { month: 'short' });
+            const day = date.getDate();
+            return `${month} ${day}`;
+        };
+
+        const getMonthsFor2026 = () => {
+            const months = [];
+            let currentDate = new Date('2026-01-01');
+
+            for (let month = 0; month < 12; month++) {
+                const monthDate = new Date(2026, month, 1);
+                const monthName = monthDate.toLocaleDateString('en-US', { month: 'long' });
+
+                // Calculate which week this month starts in
+                const daysDiff = Math.floor((monthDate - YEAR_2026_START) / (1000 * 60 * 60 * 24));
+                const weekStart = Math.floor(daysDiff / 7) + 1;
+
+                // Calculate how many weeks are in this month
+                const nextMonth = new Date(2026, month + 1, 1);
+                const monthDays = month < 11
+                    ? Math.floor((nextMonth - monthDate) / (1000 * 60 * 60 * 24))
+                    : 31; // December
+                const weeksInMonth = Math.ceil(monthDays / 7);
+
+                months.push({
+                    name: monthName,
+                    weekStart,
+                    weekEnd: Math.min(weekStart + weeksInMonth - 1, 52),
+                    weeksCount: weeksInMonth
+                });
+            }
+
+            return months;
+        };
+
+        const getWeekFromDate = (dateStr) => {
+            const date = new Date(dateStr);
+            const daysDiff = Math.floor((date - YEAR_2026_START) / (1000 * 60 * 60 * 24));
+            return Math.floor(daysDiff / 7) + 1;
+        };
+
         // Bayesian Update Functions
         const LIKELIHOOD_RATIOS = {
             positive: {
@@ -783,7 +834,7 @@
                                 />
                             </div>
                             <div>
-                                <label className="block text-sm font-medium mb-1">Start Week</label>
+                                <label className="block text-sm font-medium mb-1">Start Week (2026)</label>
                                 <input
                                     type="number"
                                     min="1"
@@ -793,6 +844,11 @@
                                     placeholder="Unscheduled"
                                     className="w-full px-3 py-2 border border-gray-300 rounded-md"
                                 />
+                                {formData.startWeek && (
+                                    <div className="text-xs text-gray-600 mt-1">
+                                        Starting {formatDate(getDateFromWeek(formData.startWeek))}
+                                    </div>
+                                )}
                             </div>
                         </div>
 
@@ -1405,7 +1461,14 @@
                                             DS:{project.resources.dataScientists} GS:{project.resources.geoscientists} PM:{project.resources.projectManagers}
                                         </td>
                                         <td className="px-4 py-2">
-                                            {project.startWeek ? `Week ${project.startWeek}` : <span className="text-gray-400">Unscheduled</span>}
+                                            {project.startWeek ? (
+                                                <div>
+                                                    <div className="font-medium">Week {project.startWeek}</div>
+                                                    <div className="text-xs text-gray-600">{formatDate(getDateFromWeek(project.startWeek))}</div>
+                                                </div>
+                                            ) : (
+                                                <span className="text-gray-400">Unscheduled</span>
+                                            )}
                                         </td>
                                     </tr>
                                 ))}
@@ -1457,7 +1520,8 @@
             return (
                 <div className="flex">
                     <div className="w-64 border-r pr-4 flex-shrink-0">
-                        <h3 className="font-bold mb-2">Unscheduled ({unscheduledProjects.length})</h3>
+                        <h3 className="font-bold mb-2 text-lg">Unscheduled ({unscheduledProjects.length})</h3>
+                        <div className="text-xs text-gray-600 mb-3">Drag to timeline to schedule</div>
                         <div className="space-y-2">
                             {unscheduledProjects.map(project => (
                                 <div
@@ -1474,13 +1538,14 @@
                     </div>
 
                     <div className="flex-1 overflow-x-auto pl-4">
-                        <div className="mb-4 flex gap-2">
-                            <button
-                                onClick={() => dispatch({ type: 'SET_TIMELINE_GROUP_BY', payload: 'stage' })}
-                                className={`px-3 py-1 rounded ${state.ui.timelineGroupBy === 'stage' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}
-                            >
-                                Group by Stage
-                            </button>
+                        <div className="mb-4 flex justify-between items-center">
+                            <div className="flex gap-2">
+                                <button
+                                    onClick={() => dispatch({ type: 'SET_TIMELINE_GROUP_BY', payload: 'stage' })}
+                                    className={`px-3 py-1 rounded ${state.ui.timelineGroupBy === 'stage' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}
+                                >
+                                    Group by Stage
+                                </button>
                             <button
                                 onClick={() => dispatch({ type: 'SET_TIMELINE_GROUP_BY', payload: 'okr' })}
                                 className={`px-3 py-1 rounded ${state.ui.timelineGroupBy === 'okr' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}
@@ -1493,15 +1558,39 @@
                             >
                                 No Grouping
                             </button>
+                            </div>
+                            <div className="text-sm text-gray-600 font-medium">
+                                2026 Timeline (52 weeks)
+                            </div>
                         </div>
 
                         <div className="relative" style={{ minWidth: '2000px' }}>
+                            {/* Month headers */}
+                            <div className="flex mb-2 border-b-2 border-blue-500">
+                                {getMonthsFor2026().map((month, idx) => {
+                                    const monthWidth = (month.weekEnd - month.weekStart + 1) * 40;
+                                    return (
+                                        <div
+                                            key={idx}
+                                            className="flex-shrink-0 text-center font-bold text-base text-blue-700 py-2 border-r border-gray-300"
+                                            style={{ width: `${monthWidth}px` }}
+                                        >
+                                            {month.name} 2026
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                            {/* Week numbers with dates */}
                             <div className="flex border-b pb-2 mb-4">
-                                {weeks.map(week => (
-                                    <div key={week} className="flex-shrink-0" style={{ width: '40px' }}>
-                                        <div className="text-xs text-center">{week}</div>
-                                    </div>
-                                ))}
+                                {weeks.map(week => {
+                                    const weekDate = getDateFromWeek(week);
+                                    return (
+                                        <div key={week} className="flex-shrink-0" style={{ width: '40px' }}>
+                                            <div className="text-xs text-center font-semibold text-gray-700">W{week}</div>
+                                            <div className="text-xs text-center text-gray-500">{formatDate(weekDate)}</div>
+                                        </div>
+                                    );
+                                })}
                             </div>
 
                             {scheduledProjects.map((project, idx) => (
@@ -1975,7 +2064,10 @@
                 <div className="bg-white border-b shadow-sm">
                     <div className="container mx-auto px-6 py-4">
                         <div className="flex items-center justify-between mb-4">
-                            <h1 className="text-3xl font-bold">Project Scheduling Toolkit</h1>
+                            <div>
+                                <h1 className="text-3xl font-bold">Project Scheduling Toolkit</h1>
+                                <div className="text-sm text-gray-600 mt-1">Planning Calendar: 2026 (Jan 1 - Dec 31)</div>
+                            </div>
                             <div className="flex items-center gap-2">
                                 <button
                                     onClick={() => dispatch({ type: 'SET_MODAL', payload: 'add' })}
