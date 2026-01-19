@@ -1,0 +1,633 @@
+{
+  "settings": {
+    "capacity": {
+      "dataScientists": 15,
+      "geoscientists": 8,
+      "projectManagers": 3
+    },
+    "defaultProbabilities": {
+      "signed": 95,
+      "closeToSigning": 70,
+      "interested": 40,
+      "frontier": 15
+    }
+  },
+  "projects": [
+    {
+      "id": "bayes-demo-001",
+      "name": "Single Positive Update Demo",
+      "sponsor": "Demo Lead A",
+      "description": "Started at 40%, received one positive-high observation → 57%",
+      "okr": "Revenue",
+      "source": "External",
+      "stage": "Interested",
+      "probability": 57,
+      "impact": "High",
+      "effort": "M",
+      "durationWeeks": 8,
+      "resources": {
+        "dataScientists": 3,
+        "geoscientists": 2,
+        "projectManagers": 1
+      },
+      "startWeek": null,
+      "dependencies": [],
+      "observations": {
+        "positive": [
+          {
+            "text": "Executive sponsor committed to project",
+            "likelihood": "High",
+            "timestamp": "2026-01-15T10:00:00Z"
+          }
+        ],
+        "negative": []
+      },
+      "probabilityHistory": [
+        {
+          "probability": 40,
+          "reason": "Created at Interested stage",
+          "timestamp": "2026-01-10T09:00:00Z",
+          "type": "created"
+        },
+        {
+          "probability": 57,
+          "reason": "Positive observation: \"Executive sponsor committed to project\" (High)",
+          "timestamp": "2026-01-15T10:00:00Z",
+          "type": "bayesian_update",
+          "priorProbability": 40,
+          "likelihoodRatio": 2.0
+        }
+      ],
+      "createdAt": "2026-01-10T09:00:00Z",
+      "updatedAt": "2026-01-15T10:00:00Z"
+    },
+    {
+      "id": "bayes-demo-002",
+      "name": "Single Negative Update Demo",
+      "sponsor": "Demo Lead B",
+      "description": "Started at 70%, received one negative-high observation → 54%",
+      "okr": "Projects",
+      "source": "External",
+      "stage": "Close to Signing",
+      "probability": 54,
+      "impact": "High",
+      "effort": "L",
+      "durationWeeks": 12,
+      "resources": {
+        "dataScientists": 4,
+        "geoscientists": 3,
+        "projectManagers": 1
+      },
+      "startWeek": null,
+      "dependencies": [],
+      "observations": {
+        "positive": [],
+        "negative": [
+          {
+            "text": "Budget significantly cut, project scope under review",
+            "likelihood": "High",
+            "timestamp": "2026-01-12T14:00:00Z"
+          }
+        ]
+      },
+      "probabilityHistory": [
+        {
+          "probability": 70,
+          "reason": "Created at Close to Signing stage",
+          "timestamp": "2026-01-08T09:00:00Z",
+          "type": "created"
+        },
+        {
+          "probability": 54,
+          "reason": "Negative observation: \"Budget significantly cut, project scope under review\" (High)",
+          "timestamp": "2026-01-12T14:00:00Z",
+          "type": "bayesian_update",
+          "priorProbability": 70,
+          "likelihoodRatio": 0.5
+        }
+      ],
+      "createdAt": "2026-01-08T09:00:00Z",
+      "updatedAt": "2026-01-12T14:00:00Z"
+    },
+    {
+      "id": "bayes-demo-003",
+      "name": "Multiple Updates - Net Positive",
+      "sponsor": "Demo Lead C",
+      "description": "Started at 40% → +17% (pos high) → -8% (neg med) → +8% (pos med) → Final: 58%",
+      "okr": "Revenue",
+      "source": "External",
+      "stage": "Interested",
+      "probability": 58,
+      "impact": "Medium",
+      "effort": "M",
+      "durationWeeks": 6,
+      "resources": {
+        "dataScientists": 2,
+        "geoscientists": 1,
+        "projectManagers": 1
+      },
+      "startWeek": null,
+      "dependencies": [],
+      "observations": {
+        "positive": [
+          {
+            "text": "Proposal accepted by client",
+            "likelihood": "High",
+            "timestamp": "2026-01-11T10:00:00Z"
+          },
+          {
+            "text": "Technical team enthusiastic about collaboration",
+            "likelihood": "Medium",
+            "timestamp": "2026-01-16T11:00:00Z"
+          }
+        ],
+        "negative": [
+          {
+            "text": "Competing vendor also in consideration",
+            "likelihood": "Medium",
+            "timestamp": "2026-01-14T15:00:00Z"
+          }
+        ]
+      },
+      "probabilityHistory": [
+        {
+          "probability": 40,
+          "reason": "Created at Interested stage",
+          "timestamp": "2026-01-10T09:00:00Z",
+          "type": "created"
+        },
+        {
+          "probability": 57,
+          "reason": "Positive observation: \"Proposal accepted by client\" (High)",
+          "timestamp": "2026-01-11T10:00:00Z",
+          "type": "bayesian_update",
+          "priorProbability": 40,
+          "likelihoodRatio": 2.0
+        },
+        {
+          "probability": 49,
+          "reason": "Negative observation: \"Competing vendor also in consideration\" (Medium)",
+          "timestamp": "2026-01-14T15:00:00Z",
+          "type": "bayesian_update",
+          "priorProbability": 57,
+          "likelihoodRatio": 0.67
+        },
+        {
+          "probability": 58,
+          "reason": "Positive observation: \"Technical team enthusiastic about collaboration\" (Medium)",
+          "timestamp": "2026-01-16T11:00:00Z",
+          "type": "bayesian_update",
+          "priorProbability": 49,
+          "likelihoodRatio": 1.5
+        }
+      ],
+      "createdAt": "2026-01-10T09:00:00Z",
+      "updatedAt": "2026-01-16T11:00:00Z"
+    },
+    {
+      "id": "bayes-demo-004",
+      "name": "Multiple Updates - Net Negative",
+      "sponsor": "Demo Lead D",
+      "description": "Started at 70% → -16% (neg high) → -9% (neg med) → +3% (pos low) → Final: 49%",
+      "okr": "Projects",
+      "source": "External",
+      "stage": "Close to Signing",
+      "probability": 49,
+      "impact": "Medium",
+      "effort": "M",
+      "durationWeeks": 8,
+      "resources": {
+        "dataScientists": 3,
+        "geoscientists": 2,
+        "projectManagers": 1
+      },
+      "startWeek": null,
+      "dependencies": [],
+      "observations": {
+        "positive": [
+          {
+            "text": "Initial meeting went well",
+            "likelihood": "Low",
+            "timestamp": "2026-01-17T10:00:00Z"
+          }
+        ],
+        "negative": [
+          {
+            "text": "Key decision maker announced retirement",
+            "likelihood": "High",
+            "timestamp": "2026-01-12T09:00:00Z"
+          },
+          {
+            "text": "Project timeline delayed 6 months",
+            "likelihood": "Medium",
+            "timestamp": "2026-01-15T14:00:00Z"
+          }
+        ]
+      },
+      "probabilityHistory": [
+        {
+          "probability": 70,
+          "reason": "Created at Close to Signing stage",
+          "timestamp": "2026-01-10T08:00:00Z",
+          "type": "created"
+        },
+        {
+          "probability": 54,
+          "reason": "Negative observation: \"Key decision maker announced retirement\" (High)",
+          "timestamp": "2026-01-12T09:00:00Z",
+          "type": "bayesian_update",
+          "priorProbability": 70,
+          "likelihoodRatio": 0.5
+        },
+        {
+          "probability": 45,
+          "reason": "Negative observation: \"Project timeline delayed 6 months\" (Medium)",
+          "timestamp": "2026-01-15T14:00:00Z",
+          "type": "bayesian_update",
+          "priorProbability": 54,
+          "likelihoodRatio": 0.67
+        },
+        {
+          "probability": 49,
+          "reason": "Positive observation: \"Initial meeting went well\" (Low)",
+          "timestamp": "2026-01-17T10:00:00Z",
+          "type": "bayesian_update",
+          "priorProbability": 45,
+          "likelihoodRatio": 1.2
+        }
+      ],
+      "createdAt": "2026-01-10T08:00:00Z",
+      "updatedAt": "2026-01-17T10:00:00Z"
+    },
+    {
+      "id": "bayes-demo-005",
+      "name": "Frontier to Interested Progression",
+      "sponsor": "Demo Lead E",
+      "description": "Started at 15% (Frontier), multiple updates → 47%, now Interested stage",
+      "okr": "Innovation",
+      "source": "Internal",
+      "stage": "Interested",
+      "probability": 47,
+      "impact": "High",
+      "effort": "L",
+      "durationWeeks": 16,
+      "resources": {
+        "dataScientists": 4,
+        "geoscientists": 2,
+        "projectManagers": 1
+      },
+      "startWeek": null,
+      "dependencies": [],
+      "observations": {
+        "positive": [
+          {
+            "text": "Market research shows strong demand",
+            "likelihood": "High",
+            "timestamp": "2026-01-12T11:00:00Z"
+          },
+          {
+            "text": "Preliminary budget discussion positive",
+            "likelihood": "Medium",
+            "timestamp": "2026-01-15T14:00:00Z"
+          },
+          {
+            "text": "Aligns with strategic roadmap",
+            "likelihood": "Medium",
+            "timestamp": "2026-01-18T09:00:00Z"
+          }
+        ],
+        "negative": [
+          {
+            "text": "Requires significant new capabilities",
+            "likelihood": "Medium",
+            "timestamp": "2026-01-14T10:00:00Z"
+          }
+        ]
+      },
+      "probabilityHistory": [
+        {
+          "probability": 15,
+          "reason": "Created at Frontier stage",
+          "timestamp": "2026-01-10T13:00:00Z",
+          "type": "created"
+        },
+        {
+          "probability": 26,
+          "reason": "Positive observation: \"Market research shows strong demand\" (High)",
+          "timestamp": "2026-01-12T11:00:00Z",
+          "type": "bayesian_update",
+          "priorProbability": 15,
+          "likelihoodRatio": 2.0
+        },
+        {
+          "probability": 20,
+          "reason": "Negative observation: \"Requires significant new capabilities\" (Medium)",
+          "timestamp": "2026-01-14T10:00:00Z",
+          "type": "bayesian_update",
+          "priorProbability": 26,
+          "likelihoodRatio": 0.67
+        },
+        {
+          "probability": 27,
+          "reason": "Positive observation: \"Preliminary budget discussion positive\" (Medium)",
+          "timestamp": "2026-01-15T14:00:00Z",
+          "type": "bayesian_update",
+          "priorProbability": 20,
+          "likelihoodRatio": 1.5
+        },
+        {
+          "probability": 35,
+          "reason": "Positive observation: \"Aligns with strategic roadmap\" (Medium)",
+          "timestamp": "2026-01-18T09:00:00Z",
+          "type": "bayesian_update",
+          "priorProbability": 27,
+          "likelihoodRatio": 1.5
+        },
+        {
+          "probability": 47,
+          "reason": "Stage changed to Interested (continued from 35%)",
+          "timestamp": "2026-01-18T10:00:00Z",
+          "type": "stage_change"
+        }
+      ],
+      "createdAt": "2026-01-10T13:00:00Z",
+      "updatedAt": "2026-01-18T10:00:00Z"
+    },
+    {
+      "id": "bayes-demo-006",
+      "name": "Extreme Case - Very Low Probability",
+      "sponsor": "Demo Lead F",
+      "description": "Started at 15%, multiple negatives → Final: 4% (approaching floor)",
+      "okr": "Revenue",
+      "source": "External",
+      "stage": "Frontier",
+      "probability": 4,
+      "impact": "High",
+      "effort": "L",
+      "durationWeeks": 20,
+      "resources": {
+        "dataScientists": 5,
+        "geoscientists": 3,
+        "projectManagers": 2
+      },
+      "startWeek": null,
+      "dependencies": [],
+      "observations": {
+        "positive": [],
+        "negative": [
+          {
+            "text": "Client organization restructuring",
+            "likelihood": "High",
+            "timestamp": "2026-01-12T09:00:00Z"
+          },
+          {
+            "text": "Budget frozen for fiscal year",
+            "likelihood": "High",
+            "timestamp": "2026-01-14T11:00:00Z"
+          },
+          {
+            "text": "Key stakeholder left company",
+            "likelihood": "Medium",
+            "timestamp": "2026-01-16T14:00:00Z"
+          }
+        ]
+      },
+      "probabilityHistory": [
+        {
+          "probability": 15,
+          "reason": "Created at Frontier stage",
+          "timestamp": "2026-01-10T14:00:00Z",
+          "type": "created"
+        },
+        {
+          "probability": 8,
+          "reason": "Negative observation: \"Client organization restructuring\" (High)",
+          "timestamp": "2026-01-12T09:00:00Z",
+          "type": "bayesian_update",
+          "priorProbability": 15,
+          "likelihoodRatio": 0.5
+        },
+        {
+          "probability": 4,
+          "reason": "Negative observation: \"Budget frozen for fiscal year\" (High)",
+          "timestamp": "2026-01-14T11:00:00Z",
+          "type": "bayesian_update",
+          "priorProbability": 8,
+          "likelihoodRatio": 0.5
+        },
+        {
+          "probability": 3,
+          "reason": "Negative observation: \"Key stakeholder left company\" (Medium)",
+          "timestamp": "2026-01-16T14:00:00Z",
+          "type": "bayesian_update",
+          "priorProbability": 4,
+          "likelihoodRatio": 0.67
+        }
+      ],
+      "createdAt": "2026-01-10T14:00:00Z",
+      "updatedAt": "2026-01-16T14:00:00Z"
+    },
+    {
+      "id": "bayes-demo-007",
+      "name": "Extreme Case - Very High Probability",
+      "sponsor": "Demo Lead G",
+      "description": "Started at 70%, multiple positives → Final: 93% (approaching ceiling)",
+      "okr": "Projects",
+      "source": "External",
+      "stage": "Close to Signing",
+      "probability": 93,
+      "impact": "High",
+      "effort": "M",
+      "durationWeeks": 8,
+      "resources": {
+        "dataScientists": 3,
+        "geoscientists": 2,
+        "projectManagers": 1
+      },
+      "startWeek": null,
+      "dependencies": [],
+      "observations": {
+        "positive": [
+          {
+            "text": "Contract terms agreed",
+            "likelihood": "High",
+            "timestamp": "2026-01-11T10:00:00Z"
+          },
+          {
+            "text": "Legal review completed successfully",
+            "likelihood": "High",
+            "timestamp": "2026-01-14T11:00:00Z"
+          },
+          {
+            "text": "Kick-off date scheduled",
+            "likelihood": "Medium",
+            "timestamp": "2026-01-17T09:00:00Z"
+          }
+        ],
+        "negative": []
+      },
+      "probabilityHistory": [
+        {
+          "probability": 70,
+          "reason": "Created at Close to Signing stage",
+          "timestamp": "2026-01-10T09:00:00Z",
+          "type": "created"
+        },
+        {
+          "probability": 82,
+          "reason": "Positive observation: \"Contract terms agreed\" (High)",
+          "timestamp": "2026-01-11T10:00:00Z",
+          "type": "bayesian_update",
+          "priorProbability": 70,
+          "likelihoodRatio": 2.0
+        },
+        {
+          "probability": 90,
+          "reason": "Positive observation: \"Legal review completed successfully\" (High)",
+          "timestamp": "2026-01-14T11:00:00Z",
+          "type": "bayesian_update",
+          "priorProbability": 82,
+          "likelihoodRatio": 2.0
+        },
+        {
+          "probability": 93,
+          "reason": "Positive observation: \"Kick-off date scheduled\" (Medium)",
+          "timestamp": "2026-01-17T09:00:00Z",
+          "type": "bayesian_update",
+          "priorProbability": 90,
+          "likelihoodRatio": 1.5
+        }
+      ],
+      "createdAt": "2026-01-10T09:00:00Z",
+      "updatedAt": "2026-01-17T09:00:00Z"
+    },
+    {
+      "id": "bayes-demo-008",
+      "name": "Mixed Signals - Oscillating Probability",
+      "sponsor": "Demo Lead H",
+      "description": "Started at 40%, wild ride through multiple updates → Final: 43%",
+      "okr": "Revenue",
+      "source": "External",
+      "stage": "Interested",
+      "probability": 43,
+      "impact": "Medium",
+      "effort": "M",
+      "durationWeeks": 10,
+      "resources": {
+        "dataScientists": 3,
+        "geoscientists": 2,
+        "projectManagers": 1
+      },
+      "startWeek": null,
+      "dependencies": [],
+      "observations": {
+        "positive": [
+          {
+            "text": "Strong initial interest",
+            "likelihood": "Medium",
+            "timestamp": "2026-01-11T09:00:00Z"
+          },
+          {
+            "text": "Technical demo went very well",
+            "likelihood": "High",
+            "timestamp": "2026-01-15T10:00:00Z"
+          },
+          {
+            "text": "Follow-up meeting scheduled",
+            "likelihood": "Low",
+            "timestamp": "2026-01-18T11:00:00Z"
+          }
+        ],
+        "negative": [
+          {
+            "text": "Price objection raised",
+            "likelihood": "Medium",
+            "timestamp": "2026-01-13T14:00:00Z"
+          },
+          {
+            "text": "Timeline concerns",
+            "likelihood": "Low",
+            "timestamp": "2026-01-16T15:00:00Z"
+          },
+          {
+            "text": "Competing priorities emerged",
+            "likelihood": "Medium",
+            "timestamp": "2026-01-17T14:00:00Z"
+          }
+        ]
+      },
+      "probabilityHistory": [
+        {
+          "probability": 40,
+          "reason": "Created at Interested stage",
+          "timestamp": "2026-01-10T10:00:00Z",
+          "type": "created"
+        },
+        {
+          "probability": 50,
+          "reason": "Positive observation: \"Strong initial interest\" (Medium)",
+          "timestamp": "2026-01-11T09:00:00Z",
+          "type": "bayesian_update",
+          "priorProbability": 40,
+          "likelihoodRatio": 1.5
+        },
+        {
+          "probability": 40,
+          "reason": "Negative observation: \"Price objection raised\" (Medium)",
+          "timestamp": "2026-01-13T14:00:00Z",
+          "type": "bayesian_update",
+          "priorProbability": 50,
+          "likelihoodRatio": 0.67
+        },
+        {
+          "probability": 57,
+          "reason": "Positive observation: \"Technical demo went very well\" (High)",
+          "timestamp": "2026-01-15T10:00:00Z",
+          "type": "bayesian_update",
+          "priorProbability": 40,
+          "likelihoodRatio": 2.0
+        },
+        {
+          "probability": 54,
+          "reason": "Negative observation: \"Timeline concerns\" (Low)",
+          "timestamp": "2026-01-16T15:00:00Z",
+          "type": "bayesian_update",
+          "priorProbability": 57,
+          "likelihoodRatio": 0.83
+        },
+        {
+          "probability": 45,
+          "reason": "Negative observation: \"Competing priorities emerged\" (Medium)",
+          "timestamp": "2026-01-17T14:00:00Z",
+          "type": "bayesian_update",
+          "priorProbability": 54,
+          "likelihoodRatio": 0.67
+        },
+        {
+          "probability": 48,
+          "reason": "Positive observation: \"Follow-up meeting scheduled\" (Low)",
+          "timestamp": "2026-01-18T11:00:00Z",
+          "type": "bayesian_update",
+          "priorProbability": 45,
+          "likelihoodRatio": 1.2
+        }
+      ],
+      "createdAt": "2026-01-10T10:00:00Z",
+      "updatedAt": "2026-01-18T11:00:00Z"
+    }
+  ],
+  "ui": {
+    "activeTab": "list",
+    "filters": {
+      "search": "",
+      "stages": [],
+      "okrs": [],
+      "sources": [],
+      "scheduled": null
+    },
+    "selectedProjectId": null,
+    "modalOpen": null,
+    "timelineGroupBy": "stage",
+    "timelineZoom": "year"
+  }
+}

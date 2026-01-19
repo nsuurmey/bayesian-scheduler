@@ -123,6 +123,75 @@ This directory contains several test JSON files designed to verify different asp
 
 ---
 
+### 5. `test-data-bayesian-updates.json`
+**Purpose:** Demonstrate Bayesian probability updating in action
+**What it tests:**
+- Automatic probability updates when observations are added
+- Likelihood ratio calculations (High, Medium, Low)
+- Probability history tracking
+- Multiple sequential updates
+- Positive and negative evidence effects
+- Edge cases approaching 1% and 99% bounds
+
+**Key Stats:**
+- 8 projects demonstrating different update scenarios
+- Each project shows complete probability history
+- Capacity: 15 DS, 8 GS, 3 PM
+
+**Demonstration Scenarios:**
+
+| Project | Scenario | Initial → Final | Key Learning |
+|---------|----------|----------------|--------------|
+| Single Positive Update Demo | One positive-high observation | 40% → 57% (+17%) | High likelihood doubles odds |
+| Single Negative Update Demo | One negative-high observation | 70% → 54% (-16%) | High likelihood halves odds |
+| Multiple Updates - Net Positive | Mixed observations, net positive | 40% → 58% (+18%) | Sequential updates compound |
+| Multiple Updates - Net Negative | Mixed observations, net negative | 70% → 49% (-21%) | Negative signals can overwhelm |
+| Frontier to Interested Progression | Stage change with updates | 15% → 47% (+32%) | Frontier projects can gain confidence |
+| Extreme Case - Very Low | Multiple negatives → floor | 15% → 4% (near 1% floor) | Bounded at 1% minimum |
+| Extreme Case - Very High | Multiple positives → ceiling | 70% → 93% (near 99% ceiling) | Bounded at 99% maximum |
+| Mixed Signals - Oscillating | Many conflicting observations | 40% → 48% (+8%) | Conflicting evidence creates noise |
+
+**Expected Results:**
+- ✅ Probability History section visible in project detail modals
+- ✅ Each history entry shows: probability, change amount, likelihood ratio, timestamp
+- ✅ Green (+) for increases, red (-) for decreases
+- ✅ Most recent updates appear at top of history
+- ✅ Projects demonstrate proper Bayesian calculations
+
+**Calculation Verification:**
+
+Example from "Single Positive Update Demo":
+```
+Initial: 40% (Interested stage)
+Observation: "Executive sponsor committed" (Positive, High)
+
+Step 1: Convert to odds
+  Odds = 0.40 / (1 - 0.40) = 0.40 / 0.60 = 0.667
+
+Step 2: Apply likelihood ratio (Positive High = 2.0)
+  New Odds = 0.667 × 2.0 = 1.333
+
+Step 3: Convert back to probability
+  P = 1.333 / (1 + 1.333) = 1.333 / 2.333 = 0.571 = 57%
+
+Result: 40% → 57% (+17%)
+✅ Matches project data
+```
+
+**How to Verify Bayesian Updates:**
+1. Load this test file
+2. Click any project name to open detail modal
+3. Scroll to "Probability History" section
+4. Verify each update shows:
+   - Prior probability
+   - Likelihood ratio (LR)
+   - Posterior probability
+   - Change amount with +/- indicator
+5. Add a new observation to see live Bayesian update
+6. Confirm prompt shows calculation before applying
+
+---
+
 ## How to Use These Test Files
 
 ### Method 1: Via the Application UI

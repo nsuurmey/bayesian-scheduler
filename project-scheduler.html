@@ -104,6 +104,44 @@
             return Math.floor(daysDiff / 7) + 1;
         };
 
+        // Bayesian Update Functions
+        const LIKELIHOOD_RATIOS = {
+            positive: {
+                High: 2.0,
+                Medium: 1.5,
+                Low: 1.2
+            },
+            negative: {
+                High: 0.5,
+                Medium: 0.67,
+                Low: 0.83
+            }
+        };
+
+        const probabilityToOdds = (probability) => {
+            const p = probability / 100;
+            return p / (1 - p);
+        };
+
+        const oddsToProbability = (odds) => {
+            const p = odds / (1 + odds);
+            return Math.max(1, Math.min(99, p * 100)); // Bounded between 1% and 99%
+        };
+
+        const applyBayesianUpdate = (currentProbability, observationType, likelihood) => {
+            const likelihoodRatio = LIKELIHOOD_RATIOS[observationType][likelihood];
+            const currentOdds = probabilityToOdds(currentProbability);
+            const newOdds = currentOdds * likelihoodRatio;
+            const newProbability = oddsToProbability(newOdds);
+
+            return {
+                prior: currentProbability,
+                likelihoodRatio,
+                posterior: Math.round(newProbability),
+                change: Math.round(newProbability - currentProbability)
+            };
+        };
+
         // Initial state
         const initialState = {
             settings: {
@@ -159,6 +197,9 @@
                     ],
                     negative: []
                 },
+                probabilityHistory: [
+                    { probability: 95, reason: "Created at Signed stage", timestamp: new Date().toISOString(), type: "created" }
+                ],
                 createdAt: new Date().toISOString(),
                 updatedAt: new Date().toISOString()
             },
@@ -475,10 +516,12 @@
                                     <label className="block text-sm font-medium mb-1">Data Scientists</label>
                                     <input
                                         type="number"
+                                        step="0.25"
+                                        min="0"
                                         value={localSettings.capacity.dataScientists}
                                         onChange={(e) => setLocalSettings({
                                             ...localSettings,
-                                            capacity: { ...localSettings.capacity, dataScientists: parseInt(e.target.value) }
+                                            capacity: { ...localSettings.capacity, dataScientists: parseFloat(e.target.value) || 0 }
                                         })}
                                         className="w-full px-3 py-2 border border-gray-300 rounded-md"
                                     />
@@ -487,10 +530,12 @@
                                     <label className="block text-sm font-medium mb-1">Geoscientists</label>
                                     <input
                                         type="number"
+                                        step="0.25"
+                                        min="0"
                                         value={localSettings.capacity.geoscientists}
                                         onChange={(e) => setLocalSettings({
                                             ...localSettings,
-                                            capacity: { ...localSettings.capacity, geoscientists: parseInt(e.target.value) }
+                                            capacity: { ...localSettings.capacity, geoscientists: parseFloat(e.target.value) || 0 }
                                         })}
                                         className="w-full px-3 py-2 border border-gray-300 rounded-md"
                                     />
@@ -499,10 +544,12 @@
                                     <label className="block text-sm font-medium mb-1">Project Managers</label>
                                     <input
                                         type="number"
+                                        step="0.25"
+                                        min="0"
                                         value={localSettings.capacity.projectManagers}
                                         onChange={(e) => setLocalSettings({
                                             ...localSettings,
-                                            capacity: { ...localSettings.capacity, projectManagers: parseInt(e.target.value) }
+                                            capacity: { ...localSettings.capacity, projectManagers: parseFloat(e.target.value) || 0 }
                                         })}
                                         className="w-full px-3 py-2 border border-gray-300 rounded-md"
                                     />
@@ -619,18 +666,49 @@
                 const text = prompt(`Add ${type} observation:`);
                 if (text) {
                     const likelihood = prompt('Likelihood (Low/Medium/High):', 'Medium');
+                    if (!likelihood || !['Low', 'Medium', 'High'].includes(likelihood)) {
+                        alert('Please enter Low, Medium, or High');
+                        return;
+                    }
+
                     const newObs = {
                         text,
                         likelihood: likelihood || 'Medium',
                         timestamp: new Date().toISOString()
                     };
-                    setFormData({
-                        ...formData,
-                        observations: {
-                            ...formData.observations,
-                            [type]: [...(formData.observations?.[type] || []), newObs]
-                        }
-                    });
+
+                    // Apply Bayesian update
+                    const bayesianUpdate = applyBayesianUpdate(
+                        formData.probability,
+                        type,
+                        likelihood
+                    );
+
+                    const confirmMessage = `Observation: "${text}"\nType: ${type.charAt(0).toUpperCase() + type.slice(1)} | Likelihood: ${likelihood}\n\nBayesian Update:\nCurrent: ${bayesianUpdate.prior}%\nLikelihood Ratio: ${bayesianUpdate.likelihoodRatio}x\nNew Probability: ${bayesianUpdate.posterior}% (${bayesianUpdate.change > 0 ? '+' : ''}${bayesianUpdate.change}%)\n\nApply this update?`;
+
+                    if (confirm(confirmMessage)) {
+                        const historyEntry = {
+                            probability: bayesianUpdate.posterior,
+                            reason: `${type.charAt(0).toUpperCase() + type.slice(1)} observation: "${text}" (${likelihood})`,
+                            timestamp: new Date().toISOString(),
+                            type: 'bayesian_update',
+                            priorProbability: bayesianUpdate.prior,
+                            likelihoodRatio: bayesianUpdate.likelihoodRatio
+                        };
+
+                        setFormData({
+                            ...formData,
+                            probability: bayesianUpdate.posterior,
+                            observations: {
+                                ...formData.observations,
+                                [type]: [...(formData.observations?.[type] || []), newObs]
+                            },
+                            probabilityHistory: [
+                                ...(formData.probabilityHistory || []),
+                                historyEntry
+                            ]
+                        });
+                    }
                 }
             };
 
@@ -775,16 +853,18 @@
                         </div>
 
                         <div className="mb-4">
-                            <label className="block text-sm font-medium mb-2">Resources</label>
+                            <label className="block text-sm font-medium mb-2">Resources (0.25 increments)</label>
                             <div className="grid grid-cols-3 gap-4">
                                 <div>
                                     <label className="block text-xs text-gray-600 mb-1">Data Scientists</label>
                                     <input
                                         type="number"
+                                        step="0.25"
+                                        min="0"
                                         value={formData.resources?.dataScientists || 0}
                                         onChange={(e) => setFormData({
                                             ...formData,
-                                            resources: { ...formData.resources, dataScientists: parseInt(e.target.value) || 0 }
+                                            resources: { ...formData.resources, dataScientists: parseFloat(e.target.value) || 0 }
                                         })}
                                         className="w-full px-3 py-2 border border-gray-300 rounded-md"
                                     />
@@ -793,10 +873,12 @@
                                     <label className="block text-xs text-gray-600 mb-1">Geoscientists</label>
                                     <input
                                         type="number"
+                                        step="0.25"
+                                        min="0"
                                         value={formData.resources?.geoscientists || 0}
                                         onChange={(e) => setFormData({
                                             ...formData,
-                                            resources: { ...formData.resources, geoscientists: parseInt(e.target.value) || 0 }
+                                            resources: { ...formData.resources, geoscientists: parseFloat(e.target.value) || 0 }
                                         })}
                                         className="w-full px-3 py-2 border border-gray-300 rounded-md"
                                     />
@@ -805,10 +887,12 @@
                                     <label className="block text-xs text-gray-600 mb-1">Project Managers</label>
                                     <input
                                         type="number"
+                                        step="0.25"
+                                        min="0"
                                         value={formData.resources?.projectManagers || 0}
                                         onChange={(e) => setFormData({
                                             ...formData,
-                                            resources: { ...formData.resources, projectManagers: parseInt(e.target.value) || 0 }
+                                            resources: { ...formData.resources, projectManagers: parseFloat(e.target.value) || 0 }
                                         })}
                                         className="w-full px-3 py-2 border border-gray-300 rounded-md"
                                     />
@@ -899,6 +983,39 @@
                             </div>
                         </div>
 
+                        {formData.probabilityHistory && formData.probabilityHistory.length > 0 && (
+                            <div className="mb-4">
+                                <label className="block text-sm font-medium mb-2">Probability History</label>
+                                <div className="border border-blue-200 rounded-md p-3 bg-blue-50 max-h-48 overflow-y-auto">
+                                    {[...formData.probabilityHistory].reverse().map((entry, i) => (
+                                        <div key={i} className="text-sm mb-2 pb-2 border-b border-blue-200 last:border-0">
+                                            <div className="flex justify-between items-start">
+                                                <div className="flex-1">
+                                                    <div className="font-medium text-blue-900">
+                                                        {entry.probability}%
+                                                        {entry.type === 'bayesian_update' && entry.priorProbability && (
+                                                            <span className={`ml-2 text-xs ${entry.probability > entry.priorProbability ? 'text-green-600' : 'text-red-600'}`}>
+                                                                ({entry.probability > entry.priorProbability ? '+' : ''}{entry.probability - entry.priorProbability}%)
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                    <div className="text-xs text-gray-700 mt-1">{entry.reason}</div>
+                                                    {entry.type === 'bayesian_update' && entry.likelihoodRatio && (
+                                                        <div className="text-xs text-gray-600 mt-1">
+                                                            LR: {entry.likelihoodRatio}x
+                                                        </div>
+                                                    )}
+                                                </div>
+                                                <div className="text-xs text-gray-500 ml-2">
+                                                    {new Date(entry.timestamp).toLocaleDateString()}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
                         <div className="text-xs text-gray-500 mb-4">
                             Created: {new Date(formData.createdAt).toLocaleString()} | Last updated: {new Date(formData.updatedAt).toLocaleString()}
                         </div>
@@ -957,11 +1074,18 @@
                     return;
                 }
 
+                const timestamp = new Date().toISOString();
                 const newProject = {
                     ...formData,
                     id: generateId(),
-                    createdAt: new Date().toISOString(),
-                    updatedAt: new Date().toISOString()
+                    probabilityHistory: [{
+                        probability: formData.probability,
+                        reason: `Created at ${formData.stage} stage`,
+                        timestamp: timestamp,
+                        type: 'created'
+                    }],
+                    createdAt: timestamp,
+                    updatedAt: timestamp
                 };
 
                 dispatch({ type: 'ADD_PROJECT', payload: newProject });
@@ -1092,10 +1216,12 @@
                                         <label className="block text-sm font-medium mb-1">Data Scientists</label>
                                         <input
                                             type="number"
+                                            step="0.25"
+                                            min="0"
                                             value={formData.resources.dataScientists}
                                             onChange={(e) => setFormData({
                                                 ...formData,
-                                                resources: { ...formData.resources, dataScientists: parseInt(e.target.value) || 0 }
+                                                resources: { ...formData.resources, dataScientists: parseFloat(e.target.value) || 0 }
                                             })}
                                             className="w-full px-3 py-2 border border-gray-300 rounded-md"
                                         />
@@ -1104,10 +1230,12 @@
                                         <label className="block text-sm font-medium mb-1">Geoscientists</label>
                                         <input
                                             type="number"
+                                            step="0.25"
+                                            min="0"
                                             value={formData.resources.geoscientists}
                                             onChange={(e) => setFormData({
                                                 ...formData,
-                                                resources: { ...formData.resources, geoscientists: parseInt(e.target.value) || 0 }
+                                                resources: { ...formData.resources, geoscientists: parseFloat(e.target.value) || 0 }
                                             })}
                                             className="w-full px-3 py-2 border border-gray-300 rounded-md"
                                         />
@@ -1116,10 +1244,12 @@
                                         <label className="block text-sm font-medium mb-1">Project Managers</label>
                                         <input
                                             type="number"
+                                            step="0.25"
+                                            min="0"
                                             value={formData.resources.projectManagers}
                                             onChange={(e) => setFormData({
                                                 ...formData,
-                                                resources: { ...formData.resources, projectManagers: parseInt(e.target.value) || 0 }
+                                                resources: { ...formData.resources, projectManagers: parseFloat(e.target.value) || 0 }
                                             })}
                                             className="w-full px-3 py-2 border border-gray-300 rounded-md"
                                         />
@@ -1788,6 +1918,142 @@
                 input.click();
             };
 
+            const handleExportCSV = () => {
+                // CSV Headers
+                const headers = [
+                    'Name', 'Sponsor', 'Description', 'OKR', 'Source', 'Stage',
+                    'Probability', 'Impact', 'Effort', 'Duration (weeks)',
+                    'Data Scientists', 'Geoscientists', 'Project Managers', 'Start Week'
+                ];
+
+                // Convert projects to CSV rows
+                const rows = state.projects.map(p => [
+                    p.name || '',
+                    p.sponsor || '',
+                    (p.description || '').replace(/"/g, '""'), // Escape quotes
+                    p.okr || '',
+                    p.source || '',
+                    p.stage || '',
+                    p.probability || '',
+                    p.impact || '',
+                    p.effort || '',
+                    p.durationWeeks || '',
+                    p.resources?.dataScientists || 0,
+                    p.resources?.geoscientists || 0,
+                    p.resources?.projectManagers || 0,
+                    p.startWeek || ''
+                ]);
+
+                // Combine headers and rows
+                const csvContent = [
+                    headers.map(h => `"${h}"`).join(','),
+                    ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
+                ].join('\n');
+
+                // Download CSV
+                const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = `project-schedule-${new Date().toISOString().split('T')[0]}.csv`;
+                link.click();
+                URL.revokeObjectURL(url);
+            };
+
+            const handleImportCSV = () => {
+                const input = document.createElement('input');
+                input.type = 'file';
+                input.accept = '.csv';
+                input.onchange = (e) => {
+                    const file = e.target.files[0];
+                    if (file) {
+                        const reader = new FileReader();
+                        reader.onload = (event) => {
+                            try {
+                                const csv = event.target.result;
+                                const lines = csv.split('\n').filter(line => line.trim());
+
+                                if (lines.length < 2) {
+                                    alert('CSV file is empty or invalid');
+                                    return;
+                                }
+
+                                // Parse header
+                                const headers = lines[0].split(',').map(h => h.replace(/^"|"$/g, '').trim());
+
+                                // Parse rows
+                                const projects = [];
+                                for (let i = 1; i < lines.length; i++) {
+                                    const values = [];
+                                    let current = '';
+                                    let inQuotes = false;
+
+                                    // Simple CSV parser handling quoted fields
+                                    for (let char of lines[i]) {
+                                        if (char === '"') {
+                                            inQuotes = !inQuotes;
+                                        } else if (char === ',' && !inQuotes) {
+                                            values.push(current.trim());
+                                            current = '';
+                                        } else {
+                                            current += char;
+                                        }
+                                    }
+                                    values.push(current.trim());
+
+                                    if (values.length >= 14 && values[0]) { // Must have name at minimum
+                                        const project = {
+                                            id: generateId(),
+                                            name: values[0],
+                                            sponsor: values[1] || '',
+                                            description: values[2] || '',
+                                            okr: values[3] || 'Revenue',
+                                            source: values[4] || 'External',
+                                            stage: values[5] || 'Frontier',
+                                            probability: parseFloat(values[6]) || state.settings.defaultProbabilities.frontier,
+                                            impact: values[7] || 'Medium',
+                                            effort: values[8] || 'M',
+                                            durationWeeks: parseInt(values[9]) || 4,
+                                            resources: {
+                                                dataScientists: parseFloat(values[10]) || 0,
+                                                geoscientists: parseFloat(values[11]) || 0,
+                                                projectManagers: parseFloat(values[12]) || 0
+                                            },
+                                            startWeek: values[13] ? parseInt(values[13]) : null,
+                                            dependencies: [],
+                                            observations: { positive: [], negative: [] },
+                                            probabilityHistory: [],
+                                            createdAt: new Date().toISOString(),
+                                            updatedAt: new Date().toISOString()
+                                        };
+                                        projects.push(project);
+                                    }
+                                }
+
+                                if (projects.length === 0) {
+                                    alert('No valid projects found in CSV');
+                                    return;
+                                }
+
+                                if (confirm(`Import ${projects.length} projects from CSV? This will replace all current projects.`)) {
+                                    dispatch({
+                                        type: 'LOAD_STATE',
+                                        payload: {
+                                            ...state,
+                                            projects: projects
+                                        }
+                                    });
+                                }
+                            } catch (error) {
+                                alert('Error importing CSV: ' + error.message);
+                            }
+                        };
+                        reader.readAsText(file);
+                    }
+                };
+                input.click();
+            };
+
             const handleLoadSample = () => {
                 if (confirm('Load sample data? This will add sample projects.')) {
                     dispatch({ type: 'LOAD_SAMPLE_DATA' });
@@ -1802,7 +2068,7 @@
                                 <h1 className="text-3xl font-bold">Project Scheduling Toolkit</h1>
                                 <div className="text-sm text-gray-600 mt-1">Planning Calendar: 2026 (Jan 1 - Dec 31)</div>
                             </div>
-                            <div className="flex items-center gap-4">
+                            <div className="flex items-center gap-2">
                                 <button
                                     onClick={() => dispatch({ type: 'SET_MODAL', payload: 'add' })}
                                     className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
@@ -1811,25 +2077,40 @@
                                 </button>
                                 <button
                                     onClick={handleLoadSample}
-                                    className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700"
+                                    className="px-3 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 text-sm"
                                 >
-                                    Load Sample Data
+                                    Sample Data
+                                </button>
+                                <div className="border-l border-gray-300 h-8 mx-1"></div>
+                                <button
+                                    onClick={handleImportCSV}
+                                    className="px-3 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 text-sm"
+                                >
+                                    📥 Import CSV
                                 </button>
                                 <button
+                                    onClick={handleExportCSV}
+                                    className="px-3 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 text-sm"
+                                >
+                                    📤 Export CSV
+                                </button>
+                                <div className="border-l border-gray-300 h-8 mx-1"></div>
+                                <button
                                     onClick={handleImport}
-                                    className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700"
+                                    className="px-3 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 text-sm"
                                 >
                                     Import JSON
                                 </button>
                                 <button
                                     onClick={handleExport}
-                                    className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700"
+                                    className="px-3 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 text-sm"
                                 >
                                     Export JSON
                                 </button>
+                                <div className="border-l border-gray-300 h-8 mx-1"></div>
                                 <button
                                     onClick={() => setShowSettings(true)}
-                                    className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700"
+                                    className="px-3 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 text-sm"
                                 >
                                     ⚙️ Settings
                                 </button>
