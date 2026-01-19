@@ -70,28 +70,22 @@
 
         const getMonthsFor2026 = () => {
             const months = [];
-            let currentDate = new Date('2026-01-01');
+            const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+                               'July', 'August', 'September', 'October', 'November', 'December'];
 
-            for (let month = 0; month < 12; month++) {
-                const monthDate = new Date(2026, month, 1);
-                const monthName = monthDate.toLocaleDateString('en-US', { month: 'long' });
+            // For each month, find which weeks contain days from that month
+            for (let monthNum = 0; monthNum < 12; monthNum++) {
+                const firstDayOfMonth = new Date(2026, monthNum, 1);
+                const lastDayOfMonth = new Date(2026, monthNum + 1, 0);
 
-                // Calculate which week this month starts in
-                const daysDiff = Math.floor((monthDate - YEAR_2026_START) / (1000 * 60 * 60 * 24));
-                const weekStart = Math.floor(daysDiff / 7) + 1;
-
-                // Calculate how many weeks are in this month
-                const nextMonth = new Date(2026, month + 1, 1);
-                const monthDays = month < 11
-                    ? Math.floor((nextMonth - monthDate) / (1000 * 60 * 60 * 24))
-                    : 31; // December
-                const weeksInMonth = Math.ceil(monthDays / 7);
+                // Calculate week numbers for first and last day of month
+                const firstWeek = Math.floor((firstDayOfMonth - YEAR_2026_START) / (1000 * 60 * 60 * 24 * 7)) + 1;
+                const lastWeek = Math.floor((lastDayOfMonth - YEAR_2026_START) / (1000 * 60 * 60 * 24 * 7)) + 1;
 
                 months.push({
-                    name: monthName,
-                    weekStart,
-                    weekEnd: Math.min(weekStart + weeksInMonth - 1, 52),
-                    weeksCount: weeksInMonth
+                    name: monthNames[monthNum],
+                    weekStart: Math.max(1, firstWeek),
+                    weekEnd: Math.min(52, lastWeek)
                 });
             }
 
@@ -1517,6 +1511,26 @@
 
             const weeks = Array.from({ length: 52 }, (_, i) => i + 1);
 
+            // Group projects based on groupBy setting
+            const groupedProjects = useMemo(() => {
+                if (state.ui.timelineGroupBy === 'none') {
+                    return { 'All Projects': scheduledProjects };
+                }
+
+                const groups = {};
+                const groupKey = state.ui.timelineGroupBy === 'stage' ? 'stage' : 'okr';
+
+                scheduledProjects.forEach(project => {
+                    const group = project[groupKey];
+                    if (!groups[group]) {
+                        groups[group] = [];
+                    }
+                    groups[group].push(project);
+                });
+
+                return groups;
+            }, [scheduledProjects, state.ui.timelineGroupBy]);
+
             return (
                 <div className="flex">
                     <div className="w-64 border-r pr-4 flex-shrink-0">
@@ -1580,40 +1594,43 @@
                                     );
                                 })}
                             </div>
-                            {/* Week numbers with dates */}
+                            {/* Week numbers */}
                             <div className="flex border-b pb-2 mb-4">
-                                {weeks.map(week => {
-                                    const weekDate = getDateFromWeek(week);
-                                    return (
-                                        <div key={week} className="flex-shrink-0" style={{ width: '40px' }}>
-                                            <div className="text-xs text-center font-semibold text-gray-700">W{week}</div>
-                                            <div className="text-xs text-center text-gray-500">{formatDate(weekDate)}</div>
-                                        </div>
-                                    );
-                                })}
+                                {weeks.map(week => (
+                                    <div key={week} className="flex-shrink-0 text-center text-xs font-semibold text-gray-700" style={{ width: '40px' }}>
+                                        {week}
+                                    </div>
+                                ))}
                             </div>
 
-                            {scheduledProjects.map((project, idx) => (
-                                <div
-                                    key={project.id}
-                                    className="mb-2 relative"
-                                    style={{ height: '50px' }}
-                                >
-                                    <div
-                                        draggable
-                                        onDragStart={(e) => handleDragStart(e, project)}
-                                        onClick={() => dispatch({ type: 'SET_MODAL', payload: project.id })}
-                                        className={`timeline-bar absolute ${stageColors[project.stage].bg} text-white p-2 rounded text-xs cursor-pointer`}
-                                        style={{
-                                            left: `${(project.startWeek - 1) * 40}px`,
-                                            width: `${project.durationWeeks * 40}px`,
-                                            opacity: project.probability / 100,
-                                            top: 0
-                                        }}
-                                    >
-                                        <div className="font-medium truncate">{project.name}</div>
-                                        <div className="text-xs">DS:{project.resources.dataScientists} GS:{project.resources.geoscientists} PM:{project.resources.projectManagers}</div>
-                                    </div>
+                            {Object.entries(groupedProjects).map(([groupName, projects]) => (
+                                <div key={groupName} className="mb-6">
+                                    {state.ui.timelineGroupBy !== 'none' && (
+                                        <div className="font-bold text-sm mb-2 text-gray-700">{groupName}</div>
+                                    )}
+                                    {projects.map((project, idx) => (
+                                        <div
+                                            key={project.id}
+                                            className="mb-2 relative"
+                                            style={{ height: '50px' }}
+                                        >
+                                            <div
+                                                draggable
+                                                onDragStart={(e) => handleDragStart(e, project)}
+                                                onClick={() => dispatch({ type: 'SET_MODAL', payload: project.id })}
+                                                className={`timeline-bar absolute ${stageColors[project.stage].bg} text-white p-2 rounded text-xs cursor-pointer`}
+                                                style={{
+                                                    left: `${(project.startWeek - 1) * 40}px`,
+                                                    width: `${project.durationWeeks * 40}px`,
+                                                    opacity: project.probability / 100,
+                                                    top: 0
+                                                }}
+                                            >
+                                                <div className="font-medium truncate">{project.name}</div>
+                                                <div className="text-xs">DS:{project.resources.dataScientists} GS:{project.resources.geoscientists} PM:{project.resources.projectManagers}</div>
+                                            </div>
+                                        </div>
+                                    ))}
                                 </div>
                             ))}
 
@@ -1873,6 +1890,266 @@
                             data={scenarios.fullPipeline}
                             capacity={scenarios.totalCapacity}
                         />
+                    </div>
+                </div>
+            );
+        };
+
+        // Cross-Plot Analysis View Component
+        const CrossPlotView = () => {
+            const { state, dispatch } = useContext(AppContext);
+            const [xAxis, setXAxis] = useState('probability');
+            const [yAxis, setYAxis] = useState('impact');
+            const [hoveredProject, setHoveredProject] = useState(null);
+
+            const axisOptions = [
+                { value: 'probability', label: 'Probability (%)', min: 0, max: 100 },
+                { value: 'impact', label: 'Impact', values: ['Low', 'Medium', 'High'] },
+                { value: 'effort', label: 'Effort', values: ['S', 'M', 'L'] },
+                { value: 'durationWeeks', label: 'Duration (weeks)', min: 0, max: null }
+            ];
+
+            const getAxisValue = (project, axis) => {
+                if (axis === 'probability') return project.probability;
+                if (axis === 'durationWeeks') return project.durationWeeks;
+                if (axis === 'impact') {
+                    return { 'Low': 1, 'Medium': 2, 'High': 3 }[project.impact] || 2;
+                }
+                if (axis === 'effort') {
+                    return { 'S': 1, 'M': 2, 'L': 3 }[project.effort] || 2;
+                }
+                return 0;
+            };
+
+            const getAxisLabel = (value, axis) => {
+                if (axis === 'impact') {
+                    return ['', 'Low', 'Medium', 'High'][value] || value;
+                }
+                if (axis === 'effort') {
+                    return ['', 'S', 'M', 'L'][value] || value;
+                }
+                return value;
+            };
+
+            const getAxisConfig = (axis) => {
+                return axisOptions.find(opt => opt.value === axis);
+            };
+
+            // Calculate min/max for continuous axes
+            const xConfig = getAxisConfig(xAxis);
+            const yConfig = getAxisConfig(yAxis);
+
+            const xMin = xConfig.min !== undefined ? xConfig.min :
+                         Math.min(...state.projects.map(p => getAxisValue(p, xAxis)));
+            const xMax = xConfig.max !== undefined ? xConfig.max :
+                         Math.max(...state.projects.map(p => getAxisValue(p, xAxis)));
+
+            const yMin = yConfig.min !== undefined ? yConfig.min :
+                         Math.min(...state.projects.map(p => getAxisValue(p, yAxis)));
+            const yMax = yConfig.max !== undefined ? yConfig.max :
+                         Math.max(...state.projects.map(p => getAxisValue(p, yAxis)));
+
+            // Plot dimensions
+            const plotWidth = 700;
+            const plotHeight = 500;
+            const padding = 60;
+
+            // Convert value to pixel position with anti-clustering
+            const valueToPixel = (value, min, max, dimension) => {
+                const range = max - min || 1;
+                return ((value - min) / range) * (dimension - 2 * padding) + padding;
+            };
+
+            // Anti-clustering: add small random offset to overlapping points
+            const getPointPositions = useMemo(() => {
+                const positions = {};
+                const jitterAmount = 8;
+
+                state.projects.forEach(project => {
+                    const baseX = valueToPixel(getAxisValue(project, xAxis), xMin, xMax, plotWidth);
+                    const baseY = plotHeight - valueToPixel(getAxisValue(project, yAxis), yMin, yMax, plotHeight);
+
+                    // Check for nearby points
+                    let finalX = baseX;
+                    let finalY = baseY;
+                    let attempts = 0;
+                    let tooClose = true;
+
+                    while (tooClose && attempts < 20) {
+                        tooClose = false;
+                        for (const [id, pos] of Object.entries(positions)) {
+                            const dist = Math.sqrt(Math.pow(finalX - pos.x, 2) + Math.pow(finalY - pos.y, 2));
+                            if (dist < 20) {
+                                tooClose = true;
+                                break;
+                            }
+                        }
+                        if (tooClose) {
+                            finalX = baseX + (Math.random() - 0.5) * jitterAmount;
+                            finalY = baseY + (Math.random() - 0.5) * jitterAmount;
+                            attempts++;
+                        }
+                    }
+
+                    positions[project.id] = { x: finalX, y: finalY };
+                });
+
+                return positions;
+            }, [state.projects, xAxis, yAxis, xMin, xMax, yMin, yMax]);
+
+            // Grid lines
+            const xGridLines = xConfig.values ?
+                [1, 2, 3] :
+                [0, 0.25, 0.5, 0.75, 1].map(t => xMin + t * (xMax - xMin));
+
+            const yGridLines = yConfig.values ?
+                [1, 2, 3] :
+                [0, 0.25, 0.5, 0.75, 1].map(t => yMin + t * (yMax - yMin));
+
+            return (
+                <div>
+                    <div className="mb-6 flex gap-6">
+                        <div>
+                            <label className="block text-sm font-medium mb-2">X-Axis</label>
+                            <select
+                                value={xAxis}
+                                onChange={(e) => setXAxis(e.target.value)}
+                                className="px-4 py-2 border border-gray-300 rounded-md"
+                            >
+                                {axisOptions.map(opt => (
+                                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                                ))}
+                            </select>
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium mb-2">Y-Axis</label>
+                            <select
+                                value={yAxis}
+                                onChange={(e) => setYAxis(e.target.value)}
+                                className="px-4 py-2 border border-gray-300 rounded-md"
+                            >
+                                {axisOptions.map(opt => (
+                                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                                ))}
+                            </select>
+                        </div>
+                    </div>
+
+                    <div className="bg-white border rounded-lg p-4">
+                        <svg width={plotWidth} height={plotHeight} className="border border-gray-200">
+                            {/* Grid lines */}
+                            {xGridLines.map((value, i) => {
+                                const x = valueToPixel(value, xMin, xMax, plotWidth);
+                                return (
+                                    <g key={`x-grid-${i}`}>
+                                        <line x1={x} y1={padding} x2={x} y2={plotHeight - padding}
+                                            stroke="#e5e7eb" strokeWidth="1" />
+                                        <text x={x} y={plotHeight - padding + 20}
+                                            textAnchor="middle" fontSize="12" fill="#6b7280">
+                                            {getAxisLabel(Math.round(value), xAxis)}
+                                        </text>
+                                    </g>
+                                );
+                            })}
+
+                            {yGridLines.map((value, i) => {
+                                const y = plotHeight - valueToPixel(value, yMin, yMax, plotHeight);
+                                return (
+                                    <g key={`y-grid-${i}`}>
+                                        <line x1={padding} y1={y} x2={plotWidth - padding} y2={y}
+                                            stroke="#e5e7eb" strokeWidth="1" />
+                                        <text x={padding - 10} y={y + 4}
+                                            textAnchor="end" fontSize="12" fill="#6b7280">
+                                            {getAxisLabel(Math.round(value), yAxis)}
+                                        </text>
+                                    </g>
+                                );
+                            })}
+
+                            {/* Axes */}
+                            <line x1={padding} y1={plotHeight - padding} x2={plotWidth - padding} y2={plotHeight - padding}
+                                stroke="#374151" strokeWidth="2" />
+                            <line x1={padding} y1={padding} x2={padding} y2={plotHeight - padding}
+                                stroke="#374151" strokeWidth="2" />
+
+                            {/* Axis labels */}
+                            <text x={plotWidth / 2} y={plotHeight - 10}
+                                textAnchor="middle" fontSize="14" fontWeight="bold" fill="#1f2937">
+                                {xConfig.label}
+                            </text>
+                            <text x={20} y={plotHeight / 2}
+                                textAnchor="middle" fontSize="14" fontWeight="bold" fill="#1f2937"
+                                transform={`rotate(-90, 20, ${plotHeight / 2})`}>
+                                {yConfig.label}
+                            </text>
+
+                            {/* Data points */}
+                            {state.projects.map(project => {
+                                const pos = getPointPositions[project.id];
+                                const color = stageColors[project.stage].hex;
+                                const isHovered = hoveredProject === project.id;
+
+                                return (
+                                    <g key={project.id}>
+                                        <circle
+                                            cx={pos.x}
+                                            cy={pos.y}
+                                            r={isHovered ? 8 : 6}
+                                            fill={color}
+                                            stroke={isHovered ? '#1f2937' : '#fff'}
+                                            strokeWidth={isHovered ? 3 : 2}
+                                            opacity={project.probability / 100}
+                                            style={{ cursor: 'pointer' }}
+                                            onMouseEnter={() => setHoveredProject(project.id)}
+                                            onMouseLeave={() => setHoveredProject(null)}
+                                            onClick={() => dispatch({ type: 'SET_MODAL', payload: project.id })}
+                                        />
+                                        {isHovered && (
+                                            <g>
+                                                <rect
+                                                    x={pos.x + 12}
+                                                    y={pos.y - 40}
+                                                    width="180"
+                                                    height="75"
+                                                    fill="#1f2937"
+                                                    rx="4"
+                                                    opacity="0.95"
+                                                />
+                                                <text x={pos.x + 18} y={pos.y - 22}
+                                                    fontSize="12" fontWeight="bold" fill="#fff">
+                                                    {project.name}
+                                                </text>
+                                                <text x={pos.x + 18} y={pos.y - 8}
+                                                    fontSize="11" fill="#d1d5db">
+                                                    {xConfig.label}: {getAxisLabel(getAxisValue(project, xAxis), xAxis)}
+                                                </text>
+                                                <text x={pos.x + 18} y={pos.y + 6}
+                                                    fontSize="11" fill="#d1d5db">
+                                                    {yConfig.label}: {getAxisLabel(getAxisValue(project, yAxis), yAxis)}
+                                                </text>
+                                                <text x={pos.x + 18} y={pos.y + 20}
+                                                    fontSize="11" fill="#d1d5db">
+                                                    Stage: {project.stage}
+                                                </text>
+                                            </g>
+                                        )}
+                                    </g>
+                                );
+                            })}
+                        </svg>
+
+                        {/* Legend */}
+                        <div className="mt-6 flex gap-6">
+                            {Object.entries(stageColors).map(([stage, colors]) => (
+                                <div key={stage} className="flex items-center gap-2">
+                                    <div
+                                        className="w-4 h-4 rounded-full"
+                                        style={{ backgroundColor: colors.hex }}
+                                    />
+                                    <span className="text-sm">{stage}</span>
+                                </div>
+                            ))}
+                        </div>
                     </div>
                 </div>
             );
@@ -2156,8 +2433,8 @@
                         dispatch({ type: 'SET_MODAL', payload: null });
                     } else if (e.key === 'n' && !e.target.matches('input, textarea')) {
                         dispatch({ type: 'SET_MODAL', payload: 'add' });
-                    } else if (e.key >= '1' && e.key <= '4' && !e.target.matches('input, textarea')) {
-                        const tabs = ['list', 'timeline', 'resource', 'forecast'];
+                    } else if (e.key >= '1' && e.key <= '5' && !e.target.matches('input, textarea')) {
+                        const tabs = ['list', 'timeline', 'resource', 'forecast', 'crossplot'];
                         dispatch({ type: 'SET_ACTIVE_TAB', payload: tabs[parseInt(e.key) - 1] });
                     }
                 };
@@ -2196,6 +2473,12 @@
                                 >
                                     Forecast
                                 </button>
+                                <button
+                                    onClick={() => dispatch({ type: 'SET_ACTIVE_TAB', payload: 'crossplot' })}
+                                    className={`px-6 py-3 font-medium ${state.ui.activeTab === 'crossplot' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-600'}`}
+                                >
+                                    Cross-Plot Analysis
+                                </button>
                             </div>
 
                             <div className="bg-white rounded-lg shadow p-6">
@@ -2203,6 +2486,7 @@
                                 {state.ui.activeTab === 'timeline' && <TimelineView />}
                                 {state.ui.activeTab === 'resource' && <ResourceAllocationView />}
                                 {state.ui.activeTab === 'forecast' && <ForecastView />}
+                                {state.ui.activeTab === 'crossplot' && <CrossPlotView />}
                             </div>
                         </div>
 
