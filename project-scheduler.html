@@ -1681,10 +1681,10 @@
                                         style={{ height: '100%' }}
                                     >
                                         <div className="flex flex-col justify-end" style={{ height: `${barHeight}%` }}>
-                                            <div className="bg-green-500" style={{ height: `${(weekData[dataKeys[0]] || 0) / total * 100}%` }} />
-                                            <div className="bg-blue-500" style={{ height: `${(weekData[dataKeys[1]] || 0) / total * 100}%` }} />
-                                            <div className="bg-amber-500" style={{ height: `${(weekData[dataKeys[2]] || 0) / total * 100}%` }} />
                                             <div className="bg-gray-500" style={{ height: `${(weekData[dataKeys[3]] || 0) / total * 100}%` }} />
+                                            <div className="bg-amber-500" style={{ height: `${(weekData[dataKeys[2]] || 0) / total * 100}%` }} />
+                                            <div className="bg-blue-500" style={{ height: `${(weekData[dataKeys[1]] || 0) / total * 100}%` }} />
+                                            <div className="bg-green-500" style={{ height: `${(weekData[dataKeys[0]] || 0) / total * 100}%` }} />
                                         </div>
 
                                         {hoveredWeek === idx && total > 0 && (
