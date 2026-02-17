@@ -1656,7 +1656,7 @@
         };
 
         // Simple Stacked Bar Chart Component
-        const SimpleStackedChart = ({ data, capacity, title, dataKeys }) => {
+        const SimpleStackedChart = ({ data, capacity, title, dataKeys, segmentColors, segmentLabels }) => {
             const [hoveredWeek, setHoveredWeek] = useState(null);
 
             const maxValue = Math.max(capacity * 1.2, ...data.map(d =>
@@ -1681,19 +1681,20 @@
                                         style={{ height: '100%' }}
                                     >
                                         <div className="flex flex-col justify-end" style={{ height: `${barHeight}%` }}>
-                                            <div className="bg-gray-500" style={{ height: `${(weekData[dataKeys[3]] || 0) / total * 100}%` }} />
-                                            <div className="bg-amber-500" style={{ height: `${(weekData[dataKeys[2]] || 0) / total * 100}%` }} />
-                                            <div className="bg-blue-500" style={{ height: `${(weekData[dataKeys[1]] || 0) / total * 100}%` }} />
-                                            <div className="bg-green-500" style={{ height: `${(weekData[dataKeys[0]] || 0) / total * 100}%` }} />
+                                            {[...dataKeys].reverse().map(key => (
+                                                <div key={key} style={{ height: `${(weekData[key] || 0) / total * 100}%`, backgroundColor: segmentColors[key] }} />
+                                            ))}
                                         </div>
 
                                         {hoveredWeek === idx && total > 0 && (
                                             <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 bg-gray-900 text-white text-xs rounded px-2 py-1 whitespace-nowrap z-10">
                                                 <div className="font-bold">Week {weekData.week}</div>
-                                                <div className="text-green-300">Signed: {weekData[dataKeys[0]] || 0}</div>
-                                                <div className="text-blue-300">Close: {weekData[dataKeys[1]] || 0}</div>
-                                                <div className="text-amber-300">Interested: {weekData[dataKeys[2]] || 0}</div>
-                                                <div className="text-gray-300">Frontier: {weekData[dataKeys[3]] || 0}</div>
+                                                {dataKeys.filter(key => (weekData[key] || 0) > 0).map(key => (
+                                                    <div key={key} className="flex items-center gap-1">
+                                                        <div className="w-2 h-2 rounded-sm flex-shrink-0" style={{ backgroundColor: segmentColors[key] }}></div>
+                                                        <span>{segmentLabels[key]}: {weekData[key]}</span>
+                                                    </div>
+                                                ))}
                                                 <div className="font-bold mt-1">Total: {total}</div>
                                             </div>
                                         )}
@@ -1710,75 +1711,119 @@
                             </span>
                         </div>
                     </div>
-                    <div className="flex gap-4 mt-2 text-xs">
-                        <div className="flex items-center gap-1">
-                            <div className="w-3 h-3 bg-green-500"></div>
-                            <span>Signed</span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                            <div className="w-3 h-3 bg-blue-500"></div>
-                            <span>Close to Signing</span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                            <div className="w-3 h-3 bg-amber-500"></div>
-                            <span>Interested</span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                            <div className="w-3 h-3 bg-gray-500"></div>
-                            <span>Frontier</span>
-                        </div>
+                    <div className="flex flex-wrap gap-4 mt-2 text-xs">
+                        {dataKeys.map(key => (
+                            <div key={key} className="flex items-center gap-1">
+                                <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: segmentColors[key] }}></div>
+                                <span>{segmentLabels[key]}</span>
+                            </div>
+                        ))}
                     </div>
                 </div>
             );
         };
 
+        // Resource Allocation constants
+        const RA_STAGES = ['Signed', 'Close to Signing', 'Interested', 'Frontier'];
+        const RA_STATUS_HEX = { 'Signed': '#22c55e', 'Close to Signing': '#3b82f6', 'Interested': '#f59e0b', 'Frontier': '#6b7280' };
+        const RA_PROJECT_PALETTE = ['#4e79a7','#f28e2b','#e15759','#76b7b2','#59a14f','#edc948','#b07aa1','#ff9da7','#9c755f','#bab0ac'];
+
         // Resource Allocation View Component
         const ResourceAllocationView = () => {
             const { state } = useContext(AppContext);
+            const [colorBy, setColorBy] = useState('status');
 
+            // Status-mode: aggregate hours per stage per week
             const chartData = useMemo(() => {
                 const data = [];
                 for (let week = 1; week <= 52; week++) {
                     const weekData = { week };
-
-                    ['Signed', 'Close to Signing', 'Interested', 'Frontier'].forEach(stage => {
+                    RA_STAGES.forEach(stage => {
                         const projects = state.projects.filter(p =>
                             p.stage === stage &&
                             p.startWeek !== null &&
                             p.startWeek <= week &&
                             p.startWeek + p.durationWeeks > week
                         );
-
                         weekData[`${stage}_ds`] = projects.reduce((sum, p) => sum + p.resources.dataScientists, 0);
                         weekData[`${stage}_gs`] = projects.reduce((sum, p) => sum + p.resources.geoscientists, 0);
                         weekData[`${stage}_pm`] = projects.reduce((sum, p) => sum + p.resources.projectManagers, 0);
                     });
-
                     data.push(weekData);
                 }
                 return data;
             }, [state.projects]);
 
+            // Project-mode: scheduled projects sorted by stage order (Signed first → Frontier last)
+            const scheduledProjects = useMemo(() =>
+                [...state.projects.filter(p => p.startWeek !== null)]
+                    .sort((a, b) => RA_STAGES.indexOf(a.stage) - RA_STAGES.indexOf(b.stage)),
+                [state.projects]
+            );
+
+            // Stable color assignment: project id → palette hex
+            const projectPalette = useMemo(() => {
+                const m = {};
+                scheduledProjects.forEach((p, i) => { m[p.id] = RA_PROJECT_PALETTE[i % RA_PROJECT_PALETTE.length]; });
+                return m;
+            }, [scheduledProjects]);
+
+            // Project-mode: per-project hours per week
+            const projectChartData = useMemo(() => {
+                const data = [];
+                for (let week = 1; week <= 52; week++) {
+                    const weekData = { week };
+                    scheduledProjects.forEach(p => {
+                        const active = p.startWeek <= week && p.startWeek + p.durationWeeks > week;
+                        weekData[`${p.id}_ds`] = active ? p.resources.dataScientists : 0;
+                        weekData[`${p.id}_gs`] = active ? p.resources.geoscientists : 0;
+                        weekData[`${p.id}_pm`] = active ? p.resources.projectManagers : 0;
+                    });
+                    data.push(weekData);
+                }
+                return data;
+            }, [scheduledProjects]);
+
+            // Build props for each chart based on active color mode
+            const getChartProps = (suffix, capacity, title) => {
+                if (colorBy === 'status') {
+                    return {
+                        data: chartData,
+                        dataKeys: RA_STAGES.map(s => `${s}_${suffix}`),
+                        segmentColors: Object.fromEntries(RA_STAGES.map(s => [`${s}_${suffix}`, RA_STATUS_HEX[s]])),
+                        segmentLabels: Object.fromEntries(RA_STAGES.map(s => [`${s}_${suffix}`, s])),
+                        capacity,
+                        title
+                    };
+                }
+                return {
+                    data: projectChartData,
+                    dataKeys: scheduledProjects.map(p => `${p.id}_${suffix}`),
+                    segmentColors: Object.fromEntries(scheduledProjects.map(p => [`${p.id}_${suffix}`, projectPalette[p.id]])),
+                    segmentLabels: Object.fromEntries(scheduledProjects.map(p => [`${p.id}_${suffix}`, p.name])),
+                    capacity,
+                    title
+                };
+            };
+
             return (
                 <div className="space-y-8">
-                    <SimpleStackedChart
-                        data={chartData}
-                        capacity={state.settings.capacity.dataScientists}
-                        title="Data Scientists"
-                        dataKeys={['Signed_ds', 'Close to Signing_ds', 'Interested_ds', 'Frontier_ds']}
-                    />
-                    <SimpleStackedChart
-                        data={chartData}
-                        capacity={state.settings.capacity.geoscientists}
-                        title="Geoscientists"
-                        dataKeys={['Signed_gs', 'Close to Signing_gs', 'Interested_gs', 'Frontier_gs']}
-                    />
-                    <SimpleStackedChart
-                        data={chartData}
-                        capacity={state.settings.capacity.projectManagers}
-                        title="Project Managers"
-                        dataKeys={['Signed_pm', 'Close to Signing_pm', 'Interested_pm', 'Frontier_pm']}
-                    />
+                    <div className="flex justify-end items-center">
+                        <div className="flex items-center gap-2">
+                            <label className="text-sm font-medium text-gray-600">Color By</label>
+                            <select
+                                className="text-sm border rounded px-2 py-1 bg-white"
+                                value={colorBy}
+                                onChange={e => setColorBy(e.target.value)}
+                            >
+                                <option value="status">Status / Maturity</option>
+                                <option value="project">Project Name</option>
+                            </select>
+                        </div>
+                    </div>
+                    <SimpleStackedChart {...getChartProps('ds', state.settings.capacity.dataScientists, 'Data Scientists')} />
+                    <SimpleStackedChart {...getChartProps('gs', state.settings.capacity.geoscientists, 'Geoscientists')} />
+                    <SimpleStackedChart {...getChartProps('pm', state.settings.capacity.projectManagers, 'Project Managers')} />
                 </div>
             );
         };
