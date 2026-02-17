@@ -1687,9 +1687,9 @@
                                         onMouseLeave={() => setHoveredWeek(null)}
                                         style={{ height: '100%' }}
                                     >
-                                        <div className="flex flex-col justify-end" style={{ height: `${barHeight}%` }}>
+                                        <div className="flex flex-col justify-end" style={{ height: `${barHeight}%`, transition: 'height 300ms ease' }}>
                                             {[...dataKeys].reverse().map(key => (
-                                                <div key={key} style={{ height: `${(weekData[key] || 0) / total * 100}%`, backgroundColor: segmentColors[key] }} />
+                                                <div key={key} style={{ height: `${(weekData[key] || 0) / total * 100}%`, backgroundColor: segmentColors[key], transition: 'height 300ms ease' }} />
                                             ))}
                                         </div>
 
@@ -1742,6 +1742,26 @@
             const { state } = useContext(AppContext);
             const [colorBy, setColorBy] = useState('status');
 
+            // Maturity visibility — persisted to localStorage
+            const [visibleStages, setVisibleStages] = useState(() => {
+                try {
+                    const saved = localStorage.getItem('ra_visibleStages');
+                    if (saved) {
+                        const parsed = JSON.parse(saved);
+                        // Ensure all current stages are present (handles new stages added later)
+                        return Object.fromEntries(RA_STAGES.map(s => [s, parsed[s] !== false]));
+                    }
+                } catch {}
+                return Object.fromEntries(RA_STAGES.map(s => [s, true]));
+            });
+
+            useEffect(() => {
+                localStorage.setItem('ra_visibleStages', JSON.stringify(visibleStages));
+            }, [visibleStages]);
+
+            const toggleStage = stage =>
+                setVisibleStages(prev => ({ ...prev, [stage]: !prev[stage] }));
+
             // Status-mode: aggregate hours per stage per week
             const chartData = useMemo(() => {
                 const data = [];
@@ -1793,31 +1813,59 @@
                 return data;
             }, [scheduledProjects]);
 
-            // Build props for each chart based on active color mode
+            // Build props for each chart — filter by visibleStages at the dataKeys level
             const getChartProps = (suffix, capacity, title) => {
                 if (colorBy === 'status') {
+                    const activeStages = RA_STAGES.filter(s => visibleStages[s]);
                     return {
                         data: chartData,
-                        dataKeys: RA_STAGES.map(s => `${s}_${suffix}`),
-                        segmentColors: Object.fromEntries(RA_STAGES.map(s => [`${s}_${suffix}`, RA_STATUS_HEX[s]])),
-                        segmentLabels: Object.fromEntries(RA_STAGES.map(s => [`${s}_${suffix}`, s])),
+                        dataKeys: activeStages.map(s => `${s}_${suffix}`),
+                        segmentColors: Object.fromEntries(activeStages.map(s => [`${s}_${suffix}`, RA_STATUS_HEX[s]])),
+                        segmentLabels: Object.fromEntries(activeStages.map(s => [`${s}_${suffix}`, s])),
                         capacity,
                         title
                     };
                 }
+                const activeProjects = scheduledProjects.filter(p => visibleStages[p.stage]);
                 return {
                     data: projectChartData,
-                    dataKeys: scheduledProjects.map(p => `${p.id}_${suffix}`),
-                    segmentColors: Object.fromEntries(scheduledProjects.map(p => [`${p.id}_${suffix}`, projectPalette[p.id]])),
-                    segmentLabels: Object.fromEntries(scheduledProjects.map(p => [`${p.id}_${suffix}`, p.name])),
+                    dataKeys: activeProjects.map(p => `${p.id}_${suffix}`),
+                    segmentColors: Object.fromEntries(activeProjects.map(p => [`${p.id}_${suffix}`, projectPalette[p.id]])),
+                    segmentLabels: Object.fromEntries(activeProjects.map(p => [`${p.id}_${suffix}`, p.name])),
                     capacity,
                     title
                 };
             };
 
             return (
-                <div className="space-y-8">
-                    <div className="flex justify-end items-center">
+                <div className="space-y-6">
+                    {/* Toolbar: maturity chips (left) + Color By (right) */}
+                    <div className="flex flex-wrap items-center justify-between gap-3 pb-4 border-b border-gray-200">
+                        <div className="flex flex-wrap gap-2">
+                            {RA_STAGES.map(stage => {
+                                const active = visibleStages[stage];
+                                const hex = RA_STATUS_HEX[stage];
+                                return (
+                                    <label
+                                        key={stage}
+                                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium cursor-pointer select-none border-2 transition-all duration-200"
+                                        style={active
+                                            ? { backgroundColor: hex, borderColor: hex, color: 'white' }
+                                            : { backgroundColor: 'white', borderColor: hex, color: hex }
+                                        }
+                                    >
+                                        <input
+                                            type="checkbox"
+                                            className="w-3.5 h-3.5 cursor-pointer"
+                                            style={{ accentColor: active ? 'white' : hex }}
+                                            checked={active}
+                                            onChange={() => toggleStage(stage)}
+                                        />
+                                        {stage}
+                                    </label>
+                                );
+                            })}
+                        </div>
                         <div className="flex items-center gap-2">
                             <label className="text-sm font-medium text-gray-600">Color By</label>
                             <select
