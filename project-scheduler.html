@@ -1671,6 +1671,13 @@
                             {data.map((weekData, idx) => {
                                 const total = dataKeys.reduce((sum, key) => sum + (weekData[key] || 0), 0);
                                 const barHeight = (total / maxValue) * 100;
+                                const pct = capacity > 0 ? Math.round(total / capacity * 100) : 0;
+                                const overCapacity = total > capacity;
+                                const tooltipAlign = idx / data.length < 0.1
+                                    ? 'left-0'
+                                    : idx / data.length > 0.9
+                                        ? 'right-0'
+                                        : 'left-1/2 transform -translate-x-1/2';
 
                                 return (
                                     <div
@@ -1687,15 +1694,17 @@
                                         </div>
 
                                         {hoveredWeek === idx && total > 0 && (
-                                            <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 bg-gray-900 text-white text-xs rounded px-2 py-1 whitespace-nowrap z-10">
-                                                <div className="font-bold">Week {weekData.week}</div>
+                                            <div className={`absolute bottom-full mb-2 bg-gray-900 text-white text-xs rounded px-2 py-1 whitespace-nowrap z-10 ${tooltipAlign}`}>
+                                                <div className="font-bold mb-1">Week {weekData.week}</div>
                                                 {dataKeys.filter(key => (weekData[key] || 0) > 0).map(key => (
                                                     <div key={key} className="flex items-center gap-1">
                                                         <div className="w-2 h-2 rounded-sm flex-shrink-0" style={{ backgroundColor: segmentColors[key] }}></div>
                                                         <span>{segmentLabels[key]}: {weekData[key]}</span>
                                                     </div>
                                                 ))}
-                                                <div className="font-bold mt-1">Total: {total}</div>
+                                                <div className={`font-bold mt-1 pt-1 border-t border-gray-600 ${overCapacity ? 'text-red-400' : 'text-green-400'}`}>
+                                                    {overCapacity ? '⚠ ' : ''}Total: {total} / {capacity} ({pct}%)
+                                                </div>
                                             </div>
                                         )}
                                     </div>
@@ -1711,10 +1720,10 @@
                             </span>
                         </div>
                     </div>
-                    <div className="flex flex-wrap gap-4 mt-2 text-xs">
+                    <div className="flex flex-wrap gap-x-4 gap-y-2 mt-2 text-xs overflow-y-auto" style={{ maxHeight: '72px' }}>
                         {dataKeys.map(key => (
                             <div key={key} className="flex items-center gap-1">
-                                <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: segmentColors[key] }}></div>
+                                <div className="w-3 h-3 rounded-sm flex-shrink-0" style={{ backgroundColor: segmentColors[key] }}></div>
                                 <span>{segmentLabels[key]}</span>
                             </div>
                         ))}
