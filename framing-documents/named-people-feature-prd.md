@@ -114,7 +114,7 @@ const initialState = {
 
 ### 1. People Roster Management
 
-**Location**: New "People" tab, or accessible via Settings modal — TBD based on how often it's edited. Recommend a dedicated tab since it's referenced frequently during planning sessions.
+**Location**: Dedicated 5th tab ("People"), positioned after the existing four tabs (List / Timeline / Resource Allocation / Forecast).
 
 **Layout**: Simple table
 
@@ -283,15 +283,92 @@ Only shows people with named assignments. People without assignments are not sho
 
 ---
 
+## Decisions
+
+| # | Question | Decision |
+|---|---|---|
+| 1 | People roster location | **Dedicated 5th tab** ("People"), accessible at all times during planning sessions |
+| 2 | Headcount vs. assignment reconciliation | **Warning system** — flag divergence between planned headcounts and named assignments (see below) |
+| 3 | Role filtering in assignment picker | Soft-sort: matching roles first, a divider, then other roles below |
+| 4 | Sample data | Ship sample roster + pre-populated assignments so the feature is immediately visible |
+
+---
+
+## Headcount Reconciliation Warning System
+
+When a project has at least one named person assigned, the app compares `resources.*` (planned headcount) against the count of assigned people by role. Divergence is surfaced as a non-blocking warning — users can dismiss or ignore it.
+
+### Warning triggers
+
+| Condition | Severity | Message |
+|---|---|---|
+| Named DS count > `resources.dataScientists` | Yellow | "3 DS assigned, 2 planned — consider updating the planned headcount" |
+| Named DS count < `resources.dataScientists` | Yellow | "1 DS assigned, 2 planned — 1 DS seat unfilled" |
+| Named DS count matches exactly | None | No message |
+| No named assignments at all | None | Silence — project is in planning-only mode |
+
+**Severity is always yellow (informational), never red.** The two fields are intentionally independent, so divergence is a prompt for the user to reconcile, not an error.
+
+### Where warnings appear
+
+**1. Project Modal — Resources section**
+
+After the existing DS / GS / PM number inputs, a reconciliation row appears if the named count differs:
+
+```
+Resources
+─────────────────────────────────────────────────────
+  Data Scientists  [ 2 ]    ⚠ 3 assigned (Marco, Alice, Bob)
+  Geoscientists    [ 1 ]    ✓ 1 assigned (Jamie)
+  Project Managers [ 1 ]    ○ No one assigned yet
+─────────────────────────────────────────────────────
+```
+
+Icons:
+- `⚠` yellow — mismatch (over or under)
+- `✓` green — exact match
+- `○` gray — no assignments (only shown when `resources.*` > 0, to prompt staffing)
+
+Clicking the `⚠` or the names opens a small popover explaining the gap and offering a one-click "Update planned count to match" button.
+
+**2. Project List Table**
+
+A new "Staffing" column (optional, hideable) shows a compact status per project:
+
+| Status | Display |
+|---|---|
+| Fully staffed, no mismatch | `✓ Staffed` (green) |
+| Over-assigned | `⚠ +1 DS` (yellow) |
+| Under-assigned | `⚠ −1 GS` (yellow) |
+| No assignments | `○ Unassigned` (gray, only for scheduled projects) |
+| Project unscheduled | blank — unscheduled projects not evaluated |
+
+**3. People Tab — aggregate view**
+
+A summary banner at the top of the People tab if any active (scheduled) projects have staffing mismatches:
+
+```
+⚠  3 scheduled projects have staffing gaps. Review →
+```
+
+Clicking "Review →" filters the Project List to only projects with reconciliation warnings.
+
+### Acceptance Criteria additions
+
+- [ ] Resource section in Project Modal shows reconciliation icons when named count ≠ planned count
+- [ ] "Update planned count to match" one-click fix works for each role independently
+- [ ] Project List "Staffing" column reflects current reconciliation state, updates live
+- [ ] Unscheduled projects do not generate staffing warnings
+- [ ] Projects with zero named assignments show `○` prompts (not warnings) for roles where `resources.*` > 0
+- [ ] Summary banner in People tab appears when ≥ 1 scheduled project has a mismatch
+- [ ] Warnings are purely informational — the user can save and export without resolving them
+
+---
+
 ## Open Questions
 
-1. **People tab vs. Settings**: Should the People roster live in a dedicated 5th tab, or inside the Settings modal? Recommend tab (easier to access mid-session) but worth confirming with users.
-
-2. **Headcount vs. named assignment reconciliation**: Should the app warn when `resources.dataScientists` doesn't match the count of assigned DS people? If yes, at what threshold (any mismatch, or only when named > planned)?
-
-3. **Role filtering in assignment picker**: Should the picker hard-filter to matching roles, or soft-sort (matching roles first, others below a divider)?
-
-4. **Sample data update**: Should the existing sample projects ship with pre-populated `assignedPeople` using a sample roster, so new users immediately see the feature working?
+1. **Role filtering in assignment picker**: Resolved — soft-sort (matching roles first, divider, others below).
+2. **Sample data**: Resolved — include a sample roster and pre-populated assignments.
 
 ---
 
