@@ -152,6 +152,7 @@
                 }
             },
             projects: [],
+            people: [],
             ui: {
                 activeTab: 'list',
                 filters: {
@@ -164,9 +165,27 @@
                 selectedProjectId: null,
                 modalOpen: null,
                 timelineGroupBy: 'stage',
-                timelineZoom: 'year'
+                timelineZoom: 'year',
+                resourceView: 'byRole'
             }
         };
+
+        // Sample people
+        const samplePeople = (() => {
+            const defs = [
+                { name: 'Alice Chen',    role: 'Data Scientist',  capacity: 1.0  },
+                { name: 'Bob Okafor',    role: 'Data Scientist',  capacity: 1.0  },
+                { name: 'David Nguyen',  role: 'Data Scientist',  capacity: 1.0  },
+                { name: 'Priya Patel',   role: 'Data Scientist',  capacity: 0.5  },
+                { name: 'Marco Rivera',  role: 'Geoscientist',    capacity: 0.75 },
+                { name: 'Jamie Torres',  role: 'Geoscientist',    capacity: 1.0  },
+                { name: 'Carlos Mendez', role: 'Geoscientist',    capacity: 1.0  },
+                { name: 'Sarah Kim',     role: 'Project Manager', capacity: 1.0  },
+            ];
+            return defs.map(d => ({ ...d, id: generateId() }));
+        })();
+        // shorthand refs used when building sampleProjects below
+        const [spAlice, spBob, spDavid, spPriya, spMarco, spJamie, spCarlos, spSarah] = samplePeople;
 
         // Sample data
         const sampleProjects = [
@@ -185,6 +204,12 @@
                 resources: { dataScientists: 2, geoscientists: 3, projectManagers: 1 },
                 startWeek: 1,
                 dependencies: [],
+                assignedPeople: [
+                    { personId: spAlice.id, fraction: 1.0 },
+                    { personId: spMarco.id, fraction: 0.75 },
+                    { personId: spJamie.id, fraction: 1.0 },
+                    { personId: spSarah.id, fraction: 0.5 },
+                ],
                 observations: {
                     positive: [
                         { text: "Strong executive sponsor support", likelihood: "High", timestamp: new Date().toISOString() }
@@ -212,6 +237,12 @@
                 resources: { dataScientists: 4, geoscientists: 0, projectManagers: 1 },
                 startWeek: 3,
                 dependencies: [],
+                assignedPeople: [
+                    { personId: spAlice.id, fraction: 0.5 },
+                    { personId: spBob.id,   fraction: 1.0 },
+                    { personId: spDavid.id, fraction: 1.0 },
+                    { personId: spSarah.id, fraction: 0.5 },
+                ],
                 observations: {
                     positive: [
                         { text: "Aligns with 2025 strategy", likelihood: "High", timestamp: new Date().toISOString() }
@@ -308,6 +339,13 @@
                 resources: { dataScientists: 3, geoscientists: 4, projectManagers: 1 },
                 startWeek: 15,
                 dependencies: [],
+                assignedPeople: [
+                    { personId: spBob.id,    fraction: 1.0 },
+                    { personId: spDavid.id,  fraction: 0.5 },
+                    { personId: spJamie.id,  fraction: 0.75 },
+                    { personId: spCarlos.id, fraction: 1.0 },
+                    { personId: spSarah.id,  fraction: 0.5 },
+                ],
                 observations: {
                     positive: [],
                     negative: []
@@ -374,6 +412,10 @@
                 resources: { dataScientists: 3, geoscientists: 0, projectManagers: 0 },
                 startWeek: 25,
                 dependencies: [],
+                assignedPeople: [
+                    { personId: spDavid.id, fraction: 1.0 },
+                    { personId: spPriya.id, fraction: 0.5 },
+                ],
                 observations: {
                     positive: [],
                     negative: []
@@ -412,7 +454,7 @@
         const appReducer = (state, action) => {
             switch (action.type) {
                 case 'LOAD_STATE':
-                    return action.payload;
+                    return { ...action.payload, people: action.payload.people || [] };
                 case 'UPDATE_SETTINGS':
                     return { ...state, settings: { ...state.settings, ...action.payload } };
                 case 'ADD_PROJECT':
@@ -438,8 +480,21 @@
                     return { ...state, ui: { ...state.ui, timelineGroupBy: action.payload } };
                 case 'SET_TIMELINE_ZOOM':
                     return { ...state, ui: { ...state.ui, timelineZoom: action.payload } };
+                case 'ADD_PERSON':
+                    return { ...state, people: [...(state.people || []), action.payload] };
+                case 'UPDATE_PERSON':
+                    return {
+                        ...state,
+                        people: (state.people || []).map(p =>
+                            p.id === action.payload.id ? { ...p, ...action.payload.updates } : p
+                        )
+                    };
+                case 'DELETE_PERSON':
+                    return { ...state, people: (state.people || []).filter(p => p.id !== action.payload) };
+                case 'SET_RESOURCE_VIEW':
+                    return { ...state, ui: { ...state.ui, resourceView: action.payload } };
                 case 'LOAD_SAMPLE_DATA':
-                    return { ...state, projects: sampleProjects };
+                    return { ...state, projects: sampleProjects, people: samplePeople };
                 default:
                     return state;
             }
@@ -451,6 +506,56 @@
             'Close to Signing': { bg: 'bg-blue-500', text: 'text-blue-700', border: 'border-blue-500', hex: '#3b82f6' },
             'Interested': { bg: 'bg-amber-500', text: 'text-amber-700', border: 'border-amber-500', hex: '#f59e0b' },
             'Frontier': { bg: 'bg-gray-500', text: 'text-gray-700', border: 'border-gray-500', hex: '#6b7280' }
+        };
+
+        // ── People / assignment utilities ──────────────────────────────────
+        const FRACTION_OPTIONS = [0.25, 0.50, 0.75, 1.00];
+
+        // Total allocation for a person in a given week across all projects
+        const getPersonWeekLoad = (personId, week, projects) =>
+            projects
+                .filter(p =>
+                    p.startWeek !== null &&
+                    p.startWeek <= week &&
+                    p.startWeek + p.durationWeeks > week &&
+                    (p.assignedPeople || []).some(a => a.personId === personId)
+                )
+                .reduce((sum, p) => {
+                    const a = (p.assignedPeople || []).find(a => a.personId === personId);
+                    return sum + (a ? a.fraction : 0);
+                }, 0);
+
+        // Peak load across all weeks a project is active
+        const getPersonPeakLoadDuringProject = (personId, project, projects) => {
+            if (!project.startWeek) return 0;
+            let peak = 0;
+            for (let w = project.startWeek; w < project.startWeek + project.durationWeeks; w++) {
+                peak = Math.max(peak, getPersonWeekLoad(personId, w, projects));
+            }
+            return peak;
+        };
+
+        // Names of projects that overlap with a given project for a given person
+        const getConflictingProjects = (personId, project, projects) => {
+            if (!project.startWeek) return [];
+            return projects.filter(p =>
+                p.id !== project.id &&
+                p.startWeek !== null &&
+                p.startWeek < project.startWeek + project.durationWeeks &&
+                p.startWeek + p.durationWeeks > project.startWeek &&
+                (p.assignedPeople || []).some(a => a.personId === personId)
+            );
+        };
+
+        // Reconciliation status for one role in a project
+        const reconcileRole = (project, role, people, roleKey) => {
+            const planned = project.resources?.[roleKey] || 0;
+            const assigned = (project.assignedPeople || [])
+                .filter(a => {
+                    const person = people.find(p => p.id === a.personId);
+                    return person && person.role === role;
+                }).length;
+            return { planned, assigned };
         };
 
         // Capacity Indicator Component
@@ -849,50 +954,183 @@
                         <div className="mb-4">
                             <label className="block text-sm font-medium mb-2">Resources (0.25 increments)</label>
                             <div className="grid grid-cols-3 gap-4">
-                                <div>
-                                    <label className="block text-xs text-gray-600 mb-1">Data Scientists</label>
-                                    <input
-                                        type="number"
-                                        step="0.25"
-                                        min="0"
-                                        value={formData.resources?.dataScientists || 0}
-                                        onChange={(e) => setFormData({
-                                            ...formData,
-                                            resources: { ...formData.resources, dataScientists: parseFloat(e.target.value) || 0 }
-                                        })}
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-xs text-gray-600 mb-1">Geoscientists</label>
-                                    <input
-                                        type="number"
-                                        step="0.25"
-                                        min="0"
-                                        value={formData.resources?.geoscientists || 0}
-                                        onChange={(e) => setFormData({
-                                            ...formData,
-                                            resources: { ...formData.resources, geoscientists: parseFloat(e.target.value) || 0 }
-                                        })}
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-xs text-gray-600 mb-1">Project Managers</label>
-                                    <input
-                                        type="number"
-                                        step="0.25"
-                                        min="0"
-                                        value={formData.resources?.projectManagers || 0}
-                                        onChange={(e) => setFormData({
-                                            ...formData,
-                                            resources: { ...formData.resources, projectManagers: parseFloat(e.target.value) || 0 }
-                                        })}
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                                    />
-                                </div>
+                                {[
+                                    { label: 'Data Scientists', key: 'dataScientists', role: 'Data Scientist' },
+                                    { label: 'Geoscientists',   key: 'geoscientists',  role: 'Geoscientist'    },
+                                    { label: 'Project Managers',key: 'projectManagers',role: 'Project Manager'  },
+                                ].map(({ label, key, role }) => {
+                                    const rec = reconcileRole(formData, role, state.people, key);
+                                    const hasAssignments = (formData.assignedPeople || []).length > 0;
+                                    const assignedNames = (formData.assignedPeople || [])
+                                        .filter(a => { const p = state.people.find(p => p.id === a.personId); return p && p.role === role; })
+                                        .map(a => { const p = state.people.find(p => p.id === a.personId); return p ? p.name : 'Unknown'; });
+                                    let icon = null;
+                                    if (hasAssignments || assignedNames.length > 0) {
+                                        if (assignedNames.length === 0 && rec.planned > 0) {
+                                            icon = <span className="text-gray-500 ml-1" title={`No ${role}s assigned yet`}>○</span>;
+                                        } else if (assignedNames.length === rec.planned) {
+                                            icon = <span className="text-green-600 ml-1" title="Headcount matches">✓</span>;
+                                        } else {
+                                            const diff = assignedNames.length - rec.planned;
+                                            icon = (
+                                                <span className="text-amber-600 ml-1 cursor-help" title={`${assignedNames.length} assigned (${assignedNames.join(', ')}), ${rec.planned} planned`}>
+                                                    ⚠ {diff > 0 ? `+${diff}` : diff}
+                                                    <button className="text-xs underline ml-1" onClick={() => setFormData({ ...formData, resources: { ...formData.resources, [key]: assignedNames.length } })}>fix</button>
+                                                </span>
+                                            );
+                                        }
+                                    }
+                                    return (
+                                        <div key={key}>
+                                            <label className="block text-xs text-gray-600 mb-1 flex items-center gap-1">
+                                                {label}{icon}
+                                            </label>
+                                            <input
+                                                type="number"
+                                                step="0.25"
+                                                min="0"
+                                                value={formData.resources?.[key] || 0}
+                                                onChange={(e) => setFormData({
+                                                    ...formData,
+                                                    resources: { ...formData.resources, [key]: parseFloat(e.target.value) || 0 }
+                                                })}
+                                                className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                                            />
+                                        </div>
+                                    );
+                                })}
                             </div>
                         </div>
+
+                        {/* Assigned People section */}
+                        {(() => {
+                            const people = state.people || [];
+                            const assigned = formData.assignedPeople || [];
+                            const assignedIds = new Set(assigned.map(a => a.personId));
+
+                            const addPerson = (personId) => {
+                                if (assignedIds.has(personId)) return;
+                                setFormData({
+                                    ...formData,
+                                    assignedPeople: [...assigned, { personId, fraction: 1.0 }]
+                                });
+                            };
+
+                            const updateFraction = (personId, fraction) => {
+                                setFormData({
+                                    ...formData,
+                                    assignedPeople: assigned.map(a => a.personId === personId ? { ...a, fraction } : a)
+                                });
+                            };
+
+                            const removePerson = (personId) => {
+                                setFormData({
+                                    ...formData,
+                                    assignedPeople: assigned.filter(a => a.personId !== personId)
+                                });
+                            };
+
+                            // Sorted picker list: matching roles first
+                            const dsCount = formData.resources?.dataScientists || 0;
+                            const gsCount = formData.resources?.geoscientists || 0;
+                            const pmCount = formData.resources?.projectManagers || 0;
+                            const neededRoles = [];
+                            if (dsCount > 0) neededRoles.push('Data Scientist');
+                            if (gsCount > 0) neededRoles.push('Geoscientist');
+                            if (pmCount > 0) neededRoles.push('Project Manager');
+
+                            const availablePeople = people
+                                .filter(p => !assignedIds.has(p.id))
+                                .sort((a, b) => {
+                                    const aNeeded = neededRoles.includes(a.role) ? 0 : 1;
+                                    const bNeeded = neededRoles.includes(b.role) ? 0 : 1;
+                                    return aNeeded - bNeeded || a.name.localeCompare(b.name);
+                                });
+
+                            return (
+                                <div className="mb-4">
+                                    <label className="block text-sm font-medium mb-2">Assigned People</label>
+                                    <div className="border border-gray-200 rounded-md p-3 bg-gray-50">
+                                        {assigned.length === 0 && (
+                                            <div className="text-sm text-gray-400 mb-2">No one assigned yet.</div>
+                                        )}
+                                        {assigned.map(a => {
+                                            const person = people.find(p => p.id === a.personId);
+                                            const displayName = person ? person.name : <em className="text-gray-400">Unknown Person</em>;
+                                            const displayRole = person ? person.role : '';
+                                            const cap = person ? person.capacity : 1.0;
+
+                                            // Over-allocation check
+                                            let overWarn = null;
+                                            if (person && formData.startWeek) {
+                                                const otherProjects = state.projects.filter(p => p.id !== formData.id);
+                                                const peakOther = getPersonPeakLoadDuringProject(person.id, formData, otherProjects);
+                                                const totalPeak = peakOther + a.fraction;
+                                                if (totalPeak > cap) {
+                                                    const conflicts = getConflictingProjects(person.id, formData, state.projects);
+                                                    overWarn = (
+                                                        <span
+                                                            className="ml-2 text-amber-600 text-xs cursor-help"
+                                                            title={`Peak ${Math.round(totalPeak * 100)}% — also on: ${conflicts.map(c => c.name).join(', ')}`}
+                                                        >
+                                                            ⚠ {Math.round(totalPeak * 100)}%
+                                                        </span>
+                                                    );
+                                                }
+                                            }
+
+                                            return (
+                                                <div key={a.personId} className="flex items-center gap-3 mb-2 py-1 border-b border-gray-200 last:border-0">
+                                                    <div className="flex-1 text-sm font-medium">{displayName}</div>
+                                                    <div className="text-xs text-gray-500 w-28">{displayRole}</div>
+                                                    <select
+                                                        value={a.fraction}
+                                                        onChange={e => updateFraction(a.personId, parseFloat(e.target.value))}
+                                                        className="text-sm border border-gray-300 rounded px-2 py-1"
+                                                    >
+                                                        {FRACTION_OPTIONS.map(f => (
+                                                            <option key={f} value={f}>{f.toFixed(2)}</option>
+                                                        ))}
+                                                    </select>
+                                                    {overWarn}
+                                                    <button
+                                                        onClick={() => removePerson(a.personId)}
+                                                        className="text-red-500 hover:text-red-700 text-sm"
+                                                    >×</button>
+                                                </div>
+                                            );
+                                        })}
+                                        {availablePeople.length > 0 && (
+                                            <div className="flex items-center gap-2 mt-2">
+                                                <span className="text-sm text-gray-500">+ Add:</span>
+                                                <select
+                                                    className="text-sm border border-gray-300 rounded px-2 py-1"
+                                                    defaultValue=""
+                                                    onChange={e => { if (e.target.value) { addPerson(e.target.value); e.target.value = ''; } }}
+                                                >
+                                                    <option value="" disabled>Select person…</option>
+                                                    {availablePeople.map((p, i) => {
+                                                        const isNeeded = neededRoles.includes(p.role);
+                                                        const prevWasNeeded = i > 0 && neededRoles.includes(availablePeople[i - 1].role);
+                                                        return (
+                                                            <React.Fragment key={p.id}>
+                                                                {i > 0 && isNeeded !== prevWasNeeded && (
+                                                                    <option disabled>──────────────</option>
+                                                                )}
+                                                                <option value={p.id}>{p.name} ({p.role})</option>
+                                                            </React.Fragment>
+                                                        );
+                                                    })}
+                                                </select>
+                                            </div>
+                                        )}
+                                        {people.length === 0 && (
+                                            <div className="text-xs text-gray-400 mt-1">Add people in the People tab first.</div>
+                                        )}
+                                    </div>
+                                </div>
+                            );
+                        })()}
 
                         <div className="mb-4">
                             <label className="block text-sm font-medium mb-1">Description</label>
@@ -1737,10 +1975,170 @@
         const RA_STATUS_HEX = { 'Signed': '#22c55e', 'Close to Signing': '#3b82f6', 'Interested': '#f59e0b', 'Frontier': '#6b7280' };
         const RA_PROJECT_PALETTE = ['#4e79a7','#f28e2b','#e15759','#76b7b2','#59a14f','#edc948','#b07aa1','#ff9da7','#9c755f','#bab0ac'];
 
+        // Person Heat-map Sub-view
+        const PersonHeatmapView = () => {
+            const { state } = useContext(AppContext);
+            const [hoveredCell, setHoveredCell] = useState(null); // { personId, week }
+            const [collapsedRoles, setCollapsedRoles] = useState({});
+            const people = state.people || [];
+            const projects = state.projects;
+
+            const ROLES = ['Data Scientist', 'Geoscientist', 'Project Manager'];
+
+            const cellColor = (load, capacity) => {
+                if (load === 0) return '#f3f4f6'; // gray-100
+                const pct = load / capacity;
+                if (pct > 1.0) return '#ef4444'; // red
+                if (pct >= 1.0) return '#16a34a'; // dark green
+                if (pct >= 0.5) return '#4ade80'; // medium green
+                return '#bbf7d0'; // light green
+            };
+
+            const weekNumbers = Array.from({ length: 52 }, (_, i) => i + 1);
+
+            // Pre-compute load for every person × week
+            const loadMap = useMemo(() => {
+                const m = {};
+                people.forEach(person => {
+                    m[person.id] = {};
+                    weekNumbers.forEach(w => {
+                        m[person.id][w] = getPersonWeekLoad(person.id, w, projects);
+                    });
+                });
+                return m;
+            }, [people, projects]);
+
+            const toggleRole = (role) =>
+                setCollapsedRoles(prev => ({ ...prev, [role]: !prev[role] }));
+
+            return (
+                <div className="overflow-x-auto">
+                    <div style={{ minWidth: '1100px' }}>
+                        {ROLES.map(role => {
+                            const rolePeople = people.filter(p => p.role === role);
+                            if (rolePeople.length === 0) return null;
+                            const collapsed = collapsedRoles[role];
+
+                            // Aggregate utilization for the role group header
+                            const roleCapTotal = rolePeople.reduce((s, p) => s + p.capacity, 0);
+                            const roleLoadAvg = roleCapTotal > 0
+                                ? Math.round(rolePeople.reduce((s, p) => s + Object.values(loadMap[p.id] || {}).reduce((a, b) => a + b, 0), 0) / (roleCapTotal * 52) * 100)
+                                : 0;
+
+                            return (
+                                <div key={role} className="mb-6">
+                                    <div
+                                        className="flex items-center gap-2 mb-2 cursor-pointer select-none"
+                                        onClick={() => toggleRole(role)}
+                                    >
+                                        <span className="text-sm font-bold text-gray-700">{collapsed ? '▶' : '▼'}</span>
+                                        <span className="font-bold text-gray-700">{role}s</span>
+                                        <span className="text-xs text-gray-500">({rolePeople.length} people · avg {roleLoadAvg}% utilization)</span>
+                                    </div>
+
+                                    {!collapsed && (
+                                        <div>
+                                            {/* Week header */}
+                                            <div className="flex mb-1">
+                                                <div style={{ width: '140px', flexShrink: 0 }} />
+                                                {weekNumbers.map(w => (
+                                                    <div key={w} style={{ width: '18px', flexShrink: 0, fontSize: '9px', textAlign: 'center', color: '#9ca3af' }}>
+                                                        {w % 4 === 1 ? w : ''}
+                                                    </div>
+                                                ))}
+                                            </div>
+                                            {rolePeople.map(person => (
+                                                <div key={person.id} className="flex items-center mb-0.5 relative">
+                                                    <div style={{ width: '140px', flexShrink: 0, fontSize: '12px', paddingRight: '8px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                                        {person.name}
+                                                    </div>
+                                                    {weekNumbers.map(w => {
+                                                        const load = loadMap[person.id]?.[w] || 0;
+                                                        const isHovered = hoveredCell?.personId === person.id && hoveredCell?.week === w;
+                                                        const projectsThisWeek = projects.filter(p =>
+                                                            p.startWeek !== null &&
+                                                            p.startWeek <= w && p.startWeek + p.durationWeeks > w &&
+                                                            (p.assignedPeople || []).some(a => a.personId === person.id)
+                                                        );
+
+                                                        return (
+                                                            <div
+                                                                key={w}
+                                                                style={{
+                                                                    width: '18px', height: '18px', flexShrink: 0,
+                                                                    backgroundColor: cellColor(load, person.capacity),
+                                                                    border: isHovered ? '2px solid #1d4ed8' : '1px solid #e5e7eb',
+                                                                    cursor: load > 0 ? 'pointer' : 'default',
+                                                                    position: 'relative',
+                                                                }}
+                                                                onMouseEnter={() => setHoveredCell({ personId: person.id, week: w })}
+                                                                onMouseLeave={() => setHoveredCell(null)}
+                                                            >
+                                                                {isHovered && load > 0 && (
+                                                                    <div style={{
+                                                                        position: 'absolute', bottom: '100%', left: '50%', transform: 'translateX(-50%)',
+                                                                        backgroundColor: '#1f2937', color: 'white', borderRadius: '4px',
+                                                                        padding: '6px 8px', zIndex: 50, minWidth: '180px', fontSize: '11px',
+                                                                        whiteSpace: 'nowrap',
+                                                                    }}>
+                                                                        <div className="font-bold mb-1">{person.name} — Week {w}</div>
+                                                                        {projectsThisWeek.map(p => {
+                                                                            const a = (p.assignedPeople || []).find(a => a.personId === person.id);
+                                                                            return (
+                                                                                <div key={p.id} className="flex justify-between gap-4">
+                                                                                    <span className="truncate max-w-28">{p.name}</span>
+                                                                                    <span>{a?.fraction?.toFixed(2)}</span>
+                                                                                </div>
+                                                                            );
+                                                                        })}
+                                                                        <div style={{ borderTop: '1px solid #4b5563', marginTop: '4px', paddingTop: '4px' }}
+                                                                            className={load > person.capacity ? 'text-red-400 font-bold' : 'text-green-400'}>
+                                                                            Total: {load.toFixed(2)} / {person.capacity.toFixed(2)} ({Math.round(load / person.capacity * 100)}%)
+                                                                        </div>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                        })}
+
+                        {people.length === 0 && (
+                            <div className="text-gray-400 text-sm py-8 text-center">
+                                No people in roster yet. Add team members in the People tab.
+                            </div>
+                        )}
+
+                        {/* Legend */}
+                        <div className="flex items-center gap-4 mt-4 text-xs text-gray-600">
+                            {[
+                                { color: '#bbf7d0', label: '< 50%' },
+                                { color: '#4ade80', label: '50–99%' },
+                                { color: '#16a34a', label: '100%' },
+                                { color: '#ef4444', label: '> 100% (over)' },
+                                { color: '#f3f4f6', label: 'Unassigned' },
+                            ].map(({ color, label }) => (
+                                <div key={label} className="flex items-center gap-1">
+                                    <div style={{ width: 14, height: 14, backgroundColor: color, border: '1px solid #e5e7eb' }} />
+                                    {label}
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
         // Resource Allocation View Component
         const ResourceAllocationView = () => {
-            const { state } = useContext(AppContext);
+            const { state, dispatch } = useContext(AppContext);
             const [colorBy, setColorBy] = useState('status');
+            const resourceView = state.ui.resourceView || 'byRole';
 
             // Maturity visibility — persisted to localStorage
             const [visibleStages, setVisibleStages] = useState(() => {
@@ -1839,48 +2237,75 @@
 
             return (
                 <div className="space-y-6">
-                    {/* Toolbar: maturity chips (left) + Color By (right) */}
+                    {/* Toolbar */}
                     <div className="flex flex-wrap items-center justify-between gap-3 pb-4 border-b border-gray-200">
-                        <div className="flex flex-wrap gap-2">
-                            {RA_STAGES.map(stage => {
-                                const active = visibleStages[stage];
-                                const hex = RA_STATUS_HEX[stage];
-                                return (
-                                    <label
-                                        key={stage}
-                                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium cursor-pointer select-none border-2 transition-all duration-200"
-                                        style={active
-                                            ? { backgroundColor: hex, borderColor: hex, color: 'white' }
-                                            : { backgroundColor: 'white', borderColor: hex, color: hex }
-                                        }
-                                    >
-                                        <input
-                                            type="checkbox"
-                                            className="w-3.5 h-3.5 cursor-pointer"
-                                            style={{ accentColor: active ? 'white' : hex }}
-                                            checked={active}
-                                            onChange={() => toggleStage(stage)}
-                                        />
-                                        {stage}
-                                    </label>
-                                );
-                            })}
-                        </div>
-                        <div className="flex items-center gap-2">
-                            <label className="text-sm font-medium text-gray-600">Color By</label>
-                            <select
-                                className="text-sm border rounded px-2 py-1 bg-white"
-                                value={colorBy}
-                                onChange={e => setColorBy(e.target.value)}
+                        {/* View toggle */}
+                        <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
+                            <button
+                                onClick={() => dispatch({ type: 'SET_RESOURCE_VIEW', payload: 'byRole' })}
+                                className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${resourceView === 'byRole' ? 'bg-white shadow text-blue-700' : 'text-gray-600 hover:text-gray-900'}`}
                             >
-                                <option value="status">Status / Maturity</option>
-                                <option value="project">Project Name</option>
-                            </select>
+                                By Role
+                            </button>
+                            <button
+                                onClick={() => dispatch({ type: 'SET_RESOURCE_VIEW', payload: 'byPerson' })}
+                                className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${resourceView === 'byPerson' ? 'bg-white shadow text-blue-700' : 'text-gray-600 hover:text-gray-900'}`}
+                            >
+                                By Person
+                            </button>
                         </div>
+
+                        {resourceView === 'byRole' && (
+                            <div className="flex flex-wrap items-center gap-3">
+                                <div className="flex flex-wrap gap-2">
+                                    {RA_STAGES.map(stage => {
+                                        const active = visibleStages[stage];
+                                        const hex = RA_STATUS_HEX[stage];
+                                        return (
+                                            <label
+                                                key={stage}
+                                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium cursor-pointer select-none border-2 transition-all duration-200"
+                                                style={active
+                                                    ? { backgroundColor: hex, borderColor: hex, color: 'white' }
+                                                    : { backgroundColor: 'white', borderColor: hex, color: hex }
+                                                }
+                                            >
+                                                <input
+                                                    type="checkbox"
+                                                    className="w-3.5 h-3.5 cursor-pointer"
+                                                    style={{ accentColor: active ? 'white' : hex }}
+                                                    checked={active}
+                                                    onChange={() => toggleStage(stage)}
+                                                />
+                                                {stage}
+                                            </label>
+                                        );
+                                    })}
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <label className="text-sm font-medium text-gray-600">Color By</label>
+                                    <select
+                                        className="text-sm border rounded px-2 py-1 bg-white"
+                                        value={colorBy}
+                                        onChange={e => setColorBy(e.target.value)}
+                                    >
+                                        <option value="status">Status / Maturity</option>
+                                        <option value="project">Project Name</option>
+                                    </select>
+                                </div>
+                            </div>
+                        )}
                     </div>
-                    <SimpleStackedChart {...getChartProps('ds', state.settings.capacity.dataScientists, 'Data Scientists')} />
-                    <SimpleStackedChart {...getChartProps('gs', state.settings.capacity.geoscientists, 'Geoscientists')} />
-                    <SimpleStackedChart {...getChartProps('pm', state.settings.capacity.projectManagers, 'Project Managers')} />
+
+                    {resourceView === 'byRole' ? (
+                        <>
+                            <SimpleStackedChart {...getChartProps('ds', state.settings.capacity.dataScientists, 'Data Scientists')} />
+                            <SimpleStackedChart {...getChartProps('gs', state.settings.capacity.geoscientists, 'Geoscientists')} />
+                            <SimpleStackedChart {...getChartProps('pm', state.settings.capacity.projectManagers, 'Project Managers')} />
+                        </>
+                    ) : (
+                        <PersonHeatmapView />
+                    )}
                 </div>
             );
         };
@@ -2257,6 +2682,299 @@
             );
         };
 
+        // People Roster View Component
+        const PeopleRosterView = () => {
+            const { state, dispatch } = useContext(AppContext);
+            const people = state.people || [];
+            const projects = state.projects;
+
+            const [roleFilter, setRoleFilter] = useState('All');
+            const [sortKey, setSortKey] = useState('name');
+            const [editingId, setEditingId] = useState(null); // null | 'new' | personId
+            const [formData, setFormData] = useState({ name: '', role: 'Data Scientist', capacity: 1.0 });
+
+            const ROLES = ['Data Scientist', 'Geoscientist', 'Project Manager'];
+
+            // Current week for utilization display
+            const currentWeek = useMemo(() => {
+                const now = new Date();
+                const start = new Date('2026-01-01');
+                const diff = Math.floor((now - start) / (1000 * 60 * 60 * 24 * 7)) + 1;
+                return Math.max(1, Math.min(52, diff));
+            }, []);
+
+            // Compute current utilization per person
+            const personUtils = useMemo(() => {
+                const m = {};
+                people.forEach(p => {
+                    m[p.id] = getPersonWeekLoad(p.id, currentWeek, projects);
+                });
+                return m;
+            }, [people, projects, currentWeek]);
+
+            // Compute assigned projects per person
+            const personProjects = useMemo(() => {
+                const m = {};
+                people.forEach(p => {
+                    m[p.id] = projects.filter(proj =>
+                        (proj.assignedPeople || []).some(a => a.personId === p.id)
+                    );
+                });
+                return m;
+            }, [people, projects]);
+
+            // Staffing mismatch detection
+            const mismatchedProjects = useMemo(() =>
+                projects.filter(proj => {
+                    if (!proj.startWeek) return false; // unscheduled — no warning
+                    const checks = [
+                        reconcileRole(proj, 'Data Scientist',  people, 'dataScientists'),
+                        reconcileRole(proj, 'Geoscientist',    people, 'geoscientists'),
+                        reconcileRole(proj, 'Project Manager', people, 'projectManagers'),
+                    ];
+                    return checks.some(c => c.assigned > 0 && c.assigned !== c.planned);
+                }), [projects, people]);
+
+            const filtered = useMemo(() => {
+                let list = roleFilter === 'All' ? [...people] : people.filter(p => p.role === roleFilter);
+                list.sort((a, b) => {
+                    if (sortKey === 'name') return a.name.localeCompare(b.name);
+                    if (sortKey === 'role') return a.role.localeCompare(b.role);
+                    if (sortKey === 'utilization') {
+                        const aU = personUtils[a.id] / a.capacity;
+                        const bU = personUtils[b.id] / b.capacity;
+                        return bU - aU;
+                    }
+                    return 0;
+                });
+                return list;
+            }, [people, roleFilter, sortKey, personUtils]);
+
+            const startEdit = (person) => {
+                setEditingId(person.id);
+                setFormData({ name: person.name, role: person.role, capacity: person.capacity });
+            };
+
+            const startAdd = () => {
+                setEditingId('new');
+                setFormData({ name: '', role: 'Data Scientist', capacity: 1.0 });
+            };
+
+            const saveEdit = () => {
+                if (!formData.name.trim()) return;
+                if (editingId === 'new') {
+                    dispatch({ type: 'ADD_PERSON', payload: { ...formData, id: generateId() } });
+                } else {
+                    dispatch({ type: 'UPDATE_PERSON', payload: { id: editingId, updates: formData } });
+                }
+                setEditingId(null);
+            };
+
+            const removePerson = (id) => {
+                if (confirm('Remove this person? Their assignments on projects will be orphaned.')) {
+                    dispatch({ type: 'DELETE_PERSON', payload: id });
+                }
+            };
+
+            const SortHeader = ({ label, k }) => (
+                <th
+                    className="px-4 py-2 text-left cursor-pointer hover:bg-gray-100 whitespace-nowrap"
+                    onClick={() => setSortKey(k)}
+                >
+                    {label} {sortKey === k ? '↓' : ''}
+                </th>
+            );
+
+            return (
+                <div>
+                    {/* Mismatch banner */}
+                    {mismatchedProjects.length > 0 && (
+                        <div className="mb-4 flex items-center gap-3 px-4 py-2 bg-amber-50 border border-amber-300 rounded-md text-sm text-amber-800">
+                            <span>⚠ {mismatchedProjects.length} scheduled project{mismatchedProjects.length > 1 ? 's' : ''} have staffing gaps.</span>
+                            <button
+                                className="underline text-amber-700"
+                                onClick={() => dispatch({ type: 'SET_ACTIVE_TAB', payload: 'list' })}
+                            >
+                                Review in Project List →
+                            </button>
+                        </div>
+                    )}
+
+                    {/* Role filter + Sort + Add */}
+                    <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
+                        <div className="flex gap-2">
+                            {['All', ...ROLES].map(r => (
+                                <button
+                                    key={r}
+                                    onClick={() => setRoleFilter(r)}
+                                    className={`px-3 py-1 rounded-full text-sm border transition-colors ${roleFilter === r ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'}`}
+                                >
+                                    {r}
+                                </button>
+                            ))}
+                        </div>
+                        <button
+                            onClick={startAdd}
+                            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm"
+                        >
+                            + Add Person
+                        </button>
+                    </div>
+
+                    {/* Add new person inline form */}
+                    {editingId === 'new' && (
+                        <div className="mb-4 p-4 border border-blue-200 bg-blue-50 rounded-md flex items-end gap-4 flex-wrap">
+                            <div>
+                                <label className="block text-xs font-medium text-gray-600 mb-1">Name *</label>
+                                <input
+                                    autoFocus
+                                    className="px-3 py-2 border border-gray-300 rounded-md text-sm w-44"
+                                    value={formData.name}
+                                    onChange={e => setFormData({ ...formData, name: e.target.value })}
+                                    placeholder="Full name"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-medium text-gray-600 mb-1">Role</label>
+                                <select
+                                    className="px-3 py-2 border border-gray-300 rounded-md text-sm"
+                                    value={formData.role}
+                                    onChange={e => setFormData({ ...formData, role: e.target.value })}
+                                >
+                                    {ROLES.map(r => <option key={r}>{r}</option>)}
+                                </select>
+                            </div>
+                            <div>
+                                <label className="block text-xs font-medium text-gray-600 mb-1">Capacity</label>
+                                <select
+                                    className="px-3 py-2 border border-gray-300 rounded-md text-sm"
+                                    value={formData.capacity}
+                                    onChange={e => setFormData({ ...formData, capacity: parseFloat(e.target.value) })}
+                                >
+                                    {FRACTION_OPTIONS.map(f => <option key={f} value={f}>{f.toFixed(2)}</option>)}
+                                </select>
+                            </div>
+                            <div className="flex gap-2">
+                                <button onClick={saveEdit} className="px-3 py-2 bg-blue-600 text-white rounded-md text-sm hover:bg-blue-700">Save</button>
+                                <button onClick={() => setEditingId(null)} className="px-3 py-2 border border-gray-300 rounded-md text-sm hover:bg-gray-50">Cancel</button>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Roster table */}
+                    <div className="table-container">
+                        <table className="w-full border-collapse text-sm">
+                            <thead className="sticky-header bg-gray-100">
+                                <tr>
+                                    <SortHeader label="Name" k="name" />
+                                    <SortHeader label="Role" k="role" />
+                                    <th className="px-4 py-2 text-left">Capacity</th>
+                                    <th className="px-4 py-2 text-left">Assigned Projects</th>
+                                    <SortHeader label={`Utilization (Wk ${currentWeek})`} k="utilization" />
+                                    <th className="px-4 py-2 text-left">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {filtered.length === 0 && (
+                                    <tr>
+                                        <td colSpan="6" className="px-4 py-8 text-center text-gray-400">
+                                            {people.length === 0 ? 'No team members yet. Click "+ Add Person" to get started.' : 'No matches for current filter.'}
+                                        </td>
+                                    </tr>
+                                )}
+                                {filtered.map(person => {
+                                    const load = personUtils[person.id] || 0;
+                                    const pct = Math.round((load / person.capacity) * 100);
+                                    const over = load > person.capacity;
+                                    const isEditing = editingId === person.id;
+                                    const assignedProjs = personProjects[person.id] || [];
+
+                                    if (isEditing) {
+                                        return (
+                                            <tr key={person.id} className="bg-blue-50 border-b">
+                                                <td className="px-4 py-2">
+                                                    <input
+                                                        autoFocus
+                                                        className="px-2 py-1 border border-gray-300 rounded w-36 text-sm"
+                                                        value={formData.name}
+                                                        onChange={e => setFormData({ ...formData, name: e.target.value })}
+                                                    />
+                                                </td>
+                                                <td className="px-4 py-2">
+                                                    <select
+                                                        className="px-2 py-1 border border-gray-300 rounded text-sm"
+                                                        value={formData.role}
+                                                        onChange={e => setFormData({ ...formData, role: e.target.value })}
+                                                    >
+                                                        {ROLES.map(r => <option key={r}>{r}</option>)}
+                                                    </select>
+                                                </td>
+                                                <td className="px-4 py-2">
+                                                    <select
+                                                        className="px-2 py-1 border border-gray-300 rounded text-sm"
+                                                        value={formData.capacity}
+                                                        onChange={e => setFormData({ ...formData, capacity: parseFloat(e.target.value) })}
+                                                    >
+                                                        {FRACTION_OPTIONS.map(f => <option key={f} value={f}>{f.toFixed(2)}</option>)}
+                                                    </select>
+                                                </td>
+                                                <td colSpan="2" />
+                                                <td className="px-4 py-2">
+                                                    <div className="flex gap-2">
+                                                        <button onClick={saveEdit} className="px-2 py-1 bg-blue-600 text-white rounded text-xs hover:bg-blue-700">Save</button>
+                                                        <button onClick={() => setEditingId(null)} className="px-2 py-1 border border-gray-300 rounded text-xs hover:bg-gray-50">Cancel</button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        );
+                                    }
+
+                                    return (
+                                        <tr key={person.id} className="border-b hover:bg-gray-50">
+                                            <td className="px-4 py-2 font-medium">{person.name}</td>
+                                            <td className="px-4 py-2 text-gray-600">{person.role}</td>
+                                            <td className="px-4 py-2">{person.capacity.toFixed(2)}</td>
+                                            <td className="px-4 py-2 text-gray-600">
+                                                {assignedProjs.length === 0
+                                                    ? <span className="text-gray-400">—</span>
+                                                    : assignedProjs.map(p => (
+                                                        <button
+                                                            key={p.id}
+                                                            onClick={() => dispatch({ type: 'SET_MODAL', payload: p.id })}
+                                                            className="mr-1 mb-1 px-1.5 py-0.5 text-xs rounded bg-gray-100 hover:bg-gray-200 text-gray-700"
+                                                        >
+                                                            {p.name}
+                                                        </button>
+                                                    ))
+                                                }
+                                            </td>
+                                            <td className="px-4 py-2">
+                                                {load === 0
+                                                    ? <span className="text-gray-400">—</span>
+                                                    : <span className={`font-medium ${over ? 'text-red-600' : pct >= 90 ? 'text-amber-600' : 'text-green-700'}`}>
+                                                        {load.toFixed(2)} / {person.capacity.toFixed(2)} ({pct}%) {over ? '⚠' : ''}
+                                                    </span>
+                                                }
+                                            </td>
+                                            <td className="px-4 py-2">
+                                                <div className="flex gap-3">
+                                                    <button onClick={() => startEdit(person)} className="text-blue-600 hover:text-blue-800 text-xs">Edit</button>
+                                                    <button onClick={() => removePerson(person.id)} className="text-red-600 hover:text-red-800 text-xs">Remove</button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
+                    </div>
+                    <div className="mt-3 text-xs text-gray-500">
+                        {filtered.length} of {people.length} people shown
+                    </div>
+                </div>
+            );
+        };
+
         // Header Component
         const Header = () => {
             const { state, dispatch } = useContext(AppContext);
@@ -2535,8 +3253,8 @@
                         dispatch({ type: 'SET_MODAL', payload: null });
                     } else if (e.key === 'n' && !e.target.matches('input, textarea')) {
                         dispatch({ type: 'SET_MODAL', payload: 'add' });
-                    } else if (e.key >= '1' && e.key <= '5' && !e.target.matches('input, textarea')) {
-                        const tabs = ['list', 'timeline', 'resource', 'forecast', 'crossplot'];
+                    } else if (e.key >= '1' && e.key <= '6' && !e.target.matches('input, textarea')) {
+                        const tabs = ['list', 'timeline', 'resource', 'forecast', 'crossplot', 'people'];
                         dispatch({ type: 'SET_ACTIVE_TAB', payload: tabs[parseInt(e.key) - 1] });
                     }
                 };
@@ -2581,6 +3299,12 @@
                                 >
                                     Cross-Plot Analysis
                                 </button>
+                                <button
+                                    onClick={() => dispatch({ type: 'SET_ACTIVE_TAB', payload: 'people' })}
+                                    className={`px-6 py-3 font-medium ${state.ui.activeTab === 'people' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-600'}`}
+                                >
+                                    People
+                                </button>
                             </div>
 
                             <div className="bg-white rounded-lg shadow p-6">
@@ -2589,6 +3313,7 @@
                                 {state.ui.activeTab === 'resource' && <ResourceAllocationView />}
                                 {state.ui.activeTab === 'forecast' && <ForecastView />}
                                 {state.ui.activeTab === 'crossplot' && <CrossPlotView />}
+                                {state.ui.activeTab === 'people' && <PeopleRosterView />}
                             </div>
                         </div>
 
