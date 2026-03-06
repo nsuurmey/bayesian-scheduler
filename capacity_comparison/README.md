@@ -15,7 +15,7 @@ Compare five different approaches to estimating and scheduling project capacity 
 ## Quick Start
 
 ```bash
-pip install numpy scipy pandas pulp plotly
+pip install numpy scipy pandas pulp plotly openpyxl
 cd capacity_comparison
 python visualizer.py
 # → creates comparison_dashboard.html
@@ -23,11 +23,31 @@ python visualizer.py
 
 Open `comparison_dashboard.html` in a browser. The dashboard is self-contained (no server needed).
 
+### Using your own data (spreadsheet)
+
+```bash
+# 1. Generate a pre-filled Excel template
+python create_template.py
+# → creates portfolio_template.xlsx
+
+# 2. Edit portfolio_template.xlsx in Excel/Google Sheets/LibreOffice
+#    - Projects sheet: one row per project (durations, resource profiles, etc.)
+#    - Tasks sheet: one row per task, linked to projects by name
+#    - Config sheet: team headcount and historical duration data
+
+# 3. Run the dashboard from your spreadsheet
+python load_spreadsheet.py portfolio_template.xlsx
+# → creates comparison_dashboard.html from your data
+```
+
 ## File Structure
 
 ```
 capacity_comparison/
 ├── shared_dataset.py          # Single source-of-truth: 7 projects, team capacity, historical data
+├── create_template.py         # Generates portfolio_template.xlsx with sample data
+├── load_spreadsheet.py        # Loads .xlsx → runs visualizer with custom data
+├── portfolio_template.xlsx    # Excel template (generated, edit this)
 ├── methods/
 │   ├── __init__.py
 │   ├── pert.py                # PERT with critical path + Monte Carlo
@@ -50,4 +70,4 @@ capacity_comparison/
 ## Requirements
 
 - Python 3.10+
-- numpy, scipy, pandas, pulp, plotly
+- numpy, scipy, pandas, pulp, plotly, openpyxl
