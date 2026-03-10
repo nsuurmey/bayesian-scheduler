@@ -1,0 +1,887 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Capacity Simulator</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  body {
+    margin: 0; background: #0f1419; color: #e8edf2;
+    font-family: 'Segoe UI', -apple-system, sans-serif;
+    min-height: 100vh;
+  }
+  #app { max-width: 1100px; margin: 0 auto; padding: 24px 32px; }
+  input, select, button { font-family: inherit; }
+  input[type=number]::-webkit-inner-spin-button { opacity: 1; }
+
+  /* Header */
+  .header { margin-bottom: 28px; }
+  .header-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+  h1 { margin: 0; font-size: 24px; font-weight: 700; color: #e8edf2; letter-spacing: -0.02em; }
+  .subtitle { margin: 4px 0 0; font-size: 13px; color: #5a6a7a; }
+  .header-btns { display: flex; gap: 10px; align-items: center; }
+
+  /* Buttons */
+  .btn { padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 13px; line-height: 1; }
+  .btn-ghost {
+    border: 1px solid #2a3642; background: transparent; color: #8899aa;
+    transition: background 0.15s;
+  }
+  .btn-ghost:hover { background: #222d38; }
+  .btn-ghost.active { background: #222d38; }
+  .btn-add {
+    border: none; background: #22c9a0; color: #0f1419; font-weight: 600;
+  }
+  .btn-cancel {
+    padding: 8px 20px; border-radius: 6px; border: 1px solid #2a3642;
+    background: transparent; color: #8899aa; cursor: pointer; font-size: 14px;
+  }
+  .btn-confirm {
+    padding: 8px 20px; border-radius: 6px; border: none;
+    background: #22c9a0; color: #0f1419; cursor: pointer; font-size: 14px; font-weight: 600;
+  }
+
+  /* Section */
+  .section {
+    background: #1a2028; border: 1px solid #2a3642;
+    border-radius: 10px; padding: 24px; margin-bottom: 20px;
+  }
+  .section-title {
+    font-size: 13px; font-weight: 600; color: #8899aa;
+    text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 16px;
+  }
+
+  /* Settings */
+  .settings-panel {
+    background: #0f1419; border: 1px solid #3a4a58;
+    border-radius: 10px; padding: 24px; margin-bottom: 20px;
+  }
+  .settings-row { display: flex; gap: 24px; flex-wrap: wrap; align-items: flex-end; }
+  .settings-field label { font-size: 12px; color: #8899aa; display: block; margin-bottom: 4px; }
+  .settings-field input {
+    width: 120px; padding: 6px 10px; border-radius: 6px;
+    border: 1px solid #2a3642; background: #1a2028;
+    color: #e8edf2; font-size: 14px;
+  }
+
+  /* Toggle */
+  .toggles-panel {
+    background: #1a2028; border: 1px solid #2a3642;
+    border-radius: 10px; padding: 20px 24px; margin-bottom: 20px;
+  }
+  .toggle-wrap { display: flex; align-items: center; gap: 12px; cursor: pointer; user-select: none; width: fit-content; }
+  .toggle-track {
+    width: 48px; height: 26px; border-radius: 13px;
+    background: #3a4a58; transition: background 0.2s;
+    position: relative; flex-shrink: 0;
+  }
+  .toggle-track.on { background: #22c9a0; }
+  .toggle-thumb {
+    width: 20px; height: 20px; border-radius: 10px; background: #fff;
+    position: absolute; top: 3px; left: 3px;
+    transition: left 0.2s; box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+  }
+  .toggle-track.on .toggle-thumb { left: 25px; }
+  .toggle-label { font-size: 14px; font-weight: 600; color: #e8edf2; }
+  .toggle-sub { font-size: 12px; color: #8899aa; }
+
+  /* KPI Cards */
+  .kpi-row { display: flex; gap: 14px; margin-bottom: 20px; flex-wrap: wrap; }
+  .kpi-card {
+    background: #1a2028; border: 1px solid #2a3642;
+    border-radius: 8px; padding: 16px 20px; flex: 1; min-width: 160px;
+  }
+  .kpi-card.warn { border-color: rgba(224,80,80,0.4); }
+  .kpi-label { font-size: 12px; color: #8899aa; margin-bottom: 6px; font-weight: 500; letter-spacing: 0.04em; text-transform: uppercase; }
+  .kpi-value { font-size: 28px; font-weight: 700; font-family: 'JetBrains Mono','Fira Code',monospace; }
+  .kpi-sub { font-size: 12px; color: #5a6a7a; margin-top: 4px; }
+
+  /* Chart */
+  .chart-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+  .chart-legend { display: flex; gap: 16px; font-size: 12px; }
+  .legend-dot { width: 10px; height: 10px; border-radius: 2px; display: inline-block; margin-right: 5px; vertical-align: middle; }
+  .chart-container { height: 260px; position: relative; }
+  .overcap-banner {
+    margin-top: 10px; padding: 8px 14px;
+    background: rgba(224,80,80,0.08); border: 1px solid rgba(224,80,80,0.2);
+    border-radius: 6px; font-size: 13px; color: #e05050;
+  }
+  svg text { font-family: 'Segoe UI', -apple-system, sans-serif; }
+
+  /* Table */
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th {
+    text-align: left; padding: 8px 10px; color: #5a6a7a;
+    font-weight: 500; font-size: 11px; text-transform: uppercase;
+    letter-spacing: 0.05em; border-bottom: 1px solid #2a3642;
+  }
+  tr.item-row { border-bottom: 1px solid rgba(42,54,66,0.13); cursor: pointer; transition: background 0.15s; }
+  tr.item-row:hover { background: rgba(34,45,56,0.53); }
+  tr.item-row.selected { background: #222d38; }
+  tr.item-row.cut-item { opacity: 0.4; }
+  td { padding: 10px 10px; vertical-align: middle; }
+  td.mono { font-family: monospace; }
+  .badge {
+    display: inline-block; padding: 2px 8px; border-radius: 4px;
+    font-size: 11px; font-weight: 600; letter-spacing: 0.03em; text-transform: uppercase;
+  }
+  .status-select {
+    background: transparent; border-radius: 4px; padding: 3px 6px;
+    font-size: 12px; cursor: pointer; font-weight: 600; outline: none; font-family: inherit;
+  }
+  .del-btn {
+    background: transparent; border: none; color: #5a6a7a;
+    cursor: pointer; font-size: 16px; padding: 2px 6px; border-radius: 4px; line-height: 1;
+  }
+  .del-btn:hover { color: #e05050; }
+
+  /* Inline edit */
+  .edit-panel { border-color: rgba(34,201,160,0.27) !important; }
+  .edit-grid {
+    display: grid; grid-template-columns: 1fr 1fr 1fr 1fr 1fr 1fr; gap: 12px; align-items: end;
+  }
+  .edit-grid .span2 { grid-column: span 2; }
+  .edit-lbl { font-size: 11px; color: #5a6a7a; margin-bottom: 3px; display: block; text-transform: uppercase; }
+  .edit-input {
+    width: 100%; padding: 6px 10px; border-radius: 6px;
+    border: 1px solid #2a3642; background: #0f1419;
+    color: #e8edf2; font-size: 13px; outline: none; font-family: inherit;
+  }
+  .edit-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+  .close-btn { background: transparent; border: none; color: #8899aa; cursor: pointer; font-size: 18px; line-height: 1; }
+
+  /* Insight */
+  .insight-panel { border-color: rgba(34,201,160,0.2) !important; background: rgba(34,201,160,0.03) !important; }
+  .insight-title { color: #22c9a0 !important; }
+  .insight-text { font-size: 14px; color: #e8edf2; line-height: 1.7; }
+
+  /* Modal */
+  .modal-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.7);
+    display: flex; align-items: center; justify-content: center; z-index: 100;
+  }
+  .modal-box {
+    background: #1a2028; border-radius: 12px; padding: 28px; width: 420px;
+    border: 1px solid #2a3642; max-height: 90vh; overflow-y: auto;
+  }
+  .modal-title { margin: 0 0 20px; color: #e8edf2; font-size: 18px; }
+  .modal-fields { display: flex; flex-direction: column; gap: 14px; }
+  .modal-row { display: flex; gap: 12px; }
+  .modal-field { flex: 1; }
+  .modal-label { font-size: 12px; color: #8899aa; margin-bottom: 4px; display: block; font-weight: 500; }
+  .modal-input {
+    width: 100%; padding: 8px 12px; border-radius: 6px;
+    border: 1px solid #2a3642; background: #0f1419;
+    color: #e8edf2; font-size: 14px; outline: none; font-family: inherit;
+  }
+  .modal-footer { display: flex; gap: 10px; margin-top: 24px; justify-content: flex-end; }
+
+  /* CSV toast */
+  .toast {
+    position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%);
+    background: #222d38; border: 1px solid #3a4a58; color: #e8edf2;
+    padding: 10px 20px; border-radius: 8px; font-size: 13px;
+    z-index: 200; opacity: 0; transition: opacity 0.2s; pointer-events: none;
+  }
+  .toast.show { opacity: 1; }
+
+  /* Tooltip */
+  .chart-tooltip {
+    position: fixed; pointer-events: none;
+    background: #1a2028; border: 1px solid #2a3642;
+    border-radius: 8px; padding: 12px 16px; font-size: 13px;
+    white-space: nowrap; z-index: 50; display: none;
+  }
+  .tooltip-title { font-weight: 600; color: #e8edf2; margin-bottom: 6px; }
+  .tooltip-line { margin-bottom: 2px; }
+  .tooltip-cap { color: #5a6a7a; margin-top: 4px; padding-top: 4px; border-top: 1px solid #2a3642; }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div class="chart-tooltip" id="chartTooltip">
+  <div class="tooltip-title" id="ttTitle"></div>
+  <div id="ttLines"></div>
+  <div class="tooltip-cap" id="ttCap"></div>
+</div>
+<div id="modalRoot"></div>
+<div class="toast" id="toast"></div>
+<!-- Hidden file input for CSV import -->
+<input type="file" id="csvFileInput" accept=".csv" style="display:none"/>
+
+<script>
+// ── Constants ──────────────────────────────────────────────────────────────
+const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const CURRENT_MONTH = 2;
+
+const C = {
+  bg: "#0f1419", surface: "#1a2028", surfaceHover: "#222d38",
+  border: "#2a3642", borderLight: "#3a4a58",
+  text: "#e8edf2", textMuted: "#8899aa", textDim: "#5a6a7a",
+  accent: "#22c9a0", warning: "#f0a030", danger: "#e05050",
+  project: "#4a9eff", innovation: "#c084fc", external: "#f59e0b",
+  committed: "#22c9a0", pipeline: "#f0a030", cut: "#5a6a7a",
+};
+
+const CSV_HEADERS = ["name","type","status","xirCost","fteLoad","startMonth","duration","extRevenue"];
+
+// ── State ──────────────────────────────────────────────────────────────────
+let state = {
+  items: [
+    { id:1,  name:"Reservoir Characterization",    type:"project",    status:"committed", xirCost:60,  fteLoad:0.25, startMonth:0, duration:6, extRevenue:0 },
+    { id:2,  name:"Well Placement Optimization",   type:"project",    status:"committed", xirCost:80,  fteLoad:0.5,  startMonth:1, duration:6, extRevenue:0 },
+    { id:3,  name:"Seismic Reprocessing QC",       type:"project",    status:"committed", xirCost:45,  fteLoad:0.25, startMonth:0, duration:4, extRevenue:0 },
+    { id:4,  name:"Basin Screening Tool",          type:"innovation", status:"committed", xirCost:70,  fteLoad:1.0,  startMonth:1, duration:4, extRevenue:0 },
+    { id:5,  name:"GenAI Document Extraction",     type:"innovation", status:"committed", xirCost:55,  fteLoad:1.5,  startMonth:0, duration:3, extRevenue:0 },
+    { id:6,  name:"LLM Benchmarking Suite",        type:"innovation", status:"committed", xirCost:40,  fteLoad:1.0,  startMonth:2, duration:3, extRevenue:0 },
+    { id:7,  name:"Asset Team Delta - Framing",    type:"project",    status:"pipeline",  xirCost:70,  fteLoad:0.25, startMonth:3, duration:6, extRevenue:0 },
+    { id:8,  name:"Asset Team Echo - Framing",     type:"project",    status:"pipeline",  xirCost:65,  fteLoad:0.25, startMonth:3, duration:6, extRevenue:0 },
+    { id:9,  name:"Asset Team Foxtrot - Framing",  type:"project",    status:"pipeline",  xirCost:55,  fteLoad:0.25, startMonth:4, duration:6, extRevenue:0 },
+    { id:10, name:"Predictive Maintenance POC",    type:"innovation", status:"pipeline",  xirCost:50,  fteLoad:1.5,  startMonth:4, duration:4, extRevenue:0 },
+    { id:11, name:"CI Tool v5 (GenAI)",            type:"innovation", status:"pipeline",  xirCost:35,  fteLoad:1.0,  startMonth:3, duration:3, extRevenue:0 },
+    { id:12, name:"External - NOC Benchmarking",   type:"external",   status:"pipeline",  xirCost:120, fteLoad:2.0,  startMonth:4, duration:5, extRevenue:350 },
+    { id:13, name:"External - Midstream Analytics",type:"external",   status:"pipeline",  xirCost:45,  fteLoad:0.5,  startMonth:5, duration:4, extRevenue:120 },
+  ],
+  xirBudget: 2000,
+  totalFte: 19,
+  managementOverhead: 4,
+  showSettings: false,
+  includePipeline: false,
+  selectedItem: null,
+};
+
+function genId() { return Date.now() + Math.floor(Math.random() * 1000); }
+
+// ── CSV ────────────────────────────────────────────────────────────────────
+function exportCSV() {
+  const escape = v => (typeof v === 'string' && v.includes(',')) ? `"${v.replace(/"/g,'""')}"` : v;
+  const rows = [CSV_HEADERS.join(',')];
+  state.items.forEach(item => {
+    rows.push(CSV_HEADERS.map(h => escape(item[h])).join(','));
+  });
+  const blob = new Blob([rows.join('\n')], { type: 'text/csv' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'capacity-simulator.csv';
+  a.click();
+  URL.revokeObjectURL(a.href);
+  showToast('Saved capacity-simulator.csv');
+}
+
+function importCSV(text) {
+  const lines = text.trim().split(/\r?\n/);
+  if (lines.length < 2) { showToast('CSV appears empty — no items loaded.'); return; }
+
+  // Parse header and find column indices (tolerates extra/reordered columns)
+  const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+  const idx = {};
+  CSV_HEADERS.forEach(h => { idx[h] = headers.indexOf(h); });
+  const missing = CSV_HEADERS.filter(h => idx[h] === -1);
+  if (missing.length) { showToast(`Missing columns: ${missing.join(', ')}`); return; }
+
+  function parseRow(line) {
+    // Handle quoted fields
+    const cols = [];
+    let cur = '', inQuote = false;
+    for (let i = 0; i < line.length; i++) {
+      if (line[i] === '"') { inQuote = !inQuote; }
+      else if (line[i] === ',' && !inQuote) { cols.push(cur); cur = ''; }
+      else { cur += line[i]; }
+    }
+    cols.push(cur);
+    return cols;
+  }
+
+  const numFields = ['xirCost','fteLoad','startMonth','duration','extRevenue'];
+  const validTypes = new Set(['project','innovation','external']);
+  const validStatuses = new Set(['committed','pipeline','cut']);
+
+  const items = [];
+  for (let i = 1; i < lines.length; i++) {
+    if (!lines[i].trim()) continue;
+    const cols = parseRow(lines[i]);
+    const name = cols[idx['name']]?.trim();
+    if (!name) continue;
+    const type = cols[idx['type']]?.trim();
+    const status = cols[idx['status']]?.trim();
+    if (!validTypes.has(type) || !validStatuses.has(status)) continue;
+    const item = { id: genId(), name, type, status };
+    numFields.forEach(f => { item[f] = parseFloat(cols[idx[f]]) || 0; });
+    items.push(item);
+  }
+
+  if (!items.length) { showToast('No valid rows found in CSV.'); return; }
+  state.items = items;
+  state.selectedItem = null;
+  render();
+  showToast(`Loaded ${items.length} items from CSV`);
+}
+
+// ── Toast ──────────────────────────────────────────────────────────────────
+let toastTimer = null;
+function showToast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 2800);
+}
+
+// ── Derived ────────────────────────────────────────────────────────────────
+function getAvailableFte() { return state.totalFte - state.managementOverhead; }
+
+function getViewItems() {
+  return state.includePipeline
+    ? state.items.filter(i => i.status !== "cut")
+    : state.items.filter(i => i.status === "committed");
+}
+
+function calcBudget() {
+  const items = getViewItems();
+  let totalXir = 0, totalExtRev = 0;
+  items.forEach(item => {
+    totalXir += item.xirCost;
+    if (item.type === "external") totalExtRev += item.extRevenue;
+  });
+  const remaining = state.xirBudget - totalXir;
+  const pct = (totalXir / state.xirBudget) * 100;
+  return { totalXir, remaining, pct, totalExtRev };
+}
+
+function calcMonthly() {
+  const items = getViewItems();
+  const cap = getAvailableFte();
+  return MONTHS.map((month, i) => {
+    let pFte = 0, iFte = 0, eFte = 0;
+    items.forEach(item => {
+      const end = item.startMonth + item.duration;
+      if (i >= item.startMonth && i < end) {
+        if (item.type === "project") pFte += item.fteLoad;
+        else if (item.type === "innovation") iFte += item.fteLoad;
+        else eFte += item.fteLoad;
+      }
+    });
+    const r = v => Math.round(v * 100) / 100;
+    return { month, idx: i, projectFte: r(pFte), innovationFte: r(iFte), externalFte: r(eFte),
+             totalFte: r(pFte+iFte+eFte), fteCapacity: cap, isPast: i < CURRENT_MONTH };
+  });
+}
+
+function calcOkr() {
+  const cP = state.items.filter(i => i.type==="project" && i.status==="committed").length;
+  const pP = state.items.filter(i => i.type==="project" && i.status==="pipeline").length;
+  const cI = state.items.filter(i => i.type==="innovation" && i.status==="committed").length;
+  const pI = state.items.filter(i => i.type==="innovation" && i.status==="pipeline").length;
+  const extRev = state.items.filter(i => i.type==="external" && i.status!=="cut")
+                            .reduce((s,i) => s + i.extRevenue, 0);
+  return { committedProjects:cP, pipelineProjects:pP, committedInnovations:cI, pipelineInnovations:pI, extRev };
+}
+
+// ── Chart ──────────────────────────────────────────────────────────────────
+function drawChart() {
+  const data = calcMonthly();
+  const cap = getAvailableFte();
+  const container = document.getElementById('chartContainer');
+  if (!container) return;
+  const W = container.clientWidth || 900;
+  const H = 240;
+  const PL = 36, PR = 80, PT = 10, PB = 30;
+  const chartW = W - PL - PR;
+  const chartH = H - PT - PB;
+
+  const maxVal = Math.max(...data.map(d => d.totalFte), cap) * 1.15;
+  const barW = Math.floor(chartW / 12 * 0.6);
+  const barGap = Math.floor(chartW / 12);
+
+  function y(v) { return PT + chartH - (v / maxVal) * chartH; }
+  function barX(i) { return PL + i * barGap + (barGap - barW) / 2; }
+
+  const yTicks = [];
+  const step = maxVal > 15 ? 5 : maxVal > 8 ? 2 : 1;
+  for (let v = 0; v <= maxVal; v += step) yTicks.push(v);
+
+  let svg = `<svg id="chartSvg" width="${W}" height="${H}" xmlns="http://www.w3.org/2000/svg">`;
+
+  // Grid lines
+  yTicks.forEach(v => {
+    const yy = y(v);
+    svg += `<line x1="${PL}" y1="${yy}" x2="${W-PR}" y2="${yy}" stroke="${C.border}" stroke-dasharray="3 3"/>`;
+    svg += `<text x="${PL-6}" y="${yy+4}" text-anchor="end" font-size="11" fill="${C.textMuted}">${v}</text>`;
+  });
+
+  // Bars
+  data.forEach((d, i) => {
+    const x = barX(i);
+    const alpha = d.isPast ? "66" : "ff";
+    const segments = [
+      { key:"projectFte",    color: C.project },
+      { key:"innovationFte", color: C.innovation },
+      { key:"externalFte",   color: C.external },
+    ];
+    let bottom = 0;
+    segments.forEach(({ key, color }) => {
+      const val = d[key];
+      if (val <= 0) return;
+      const barH = (val / maxVal) * chartH;
+      const yy = y(bottom + val);
+      svg += `<rect data-idx="${i}" x="${x}" y="${yy}" width="${barW}" height="${barH}" fill="${color}${alpha}" rx="1"/>`;
+      bottom += val;
+    });
+    svg += `<text x="${x + barW/2}" y="${H-8}" text-anchor="middle" font-size="11" fill="${C.textMuted}">${d.month}</text>`;
+  });
+
+  // Capacity reference line
+  const capY = y(cap);
+  svg += `<line x1="${PL}" y1="${capY}" x2="${W-PR}" y2="${capY}" stroke="${C.danger}" stroke-dasharray="6 3" stroke-width="1.5"/>`;
+  svg += `<text x="${W-PR+6}" y="${capY+4}" font-size="11" fill="${C.danger}">Capacity: ${cap}</text>`;
+  svg += `</svg>`;
+
+  container.innerHTML = svg;
+
+  // Tooltip interactions
+  const tooltip = document.getElementById('chartTooltip');
+  container.querySelectorAll('rect[data-idx]').forEach(rect => {
+    rect.style.cursor = 'default';
+    rect.addEventListener('mouseenter', () => {
+      const d = data[+rect.getAttribute('data-idx')];
+      document.getElementById('ttTitle').textContent = d.month;
+      document.getElementById('ttLines').innerHTML =
+        `<div class="tooltip-line" style="color:${C.project}">Projects: ${d.projectFte.toFixed(1)}</div>` +
+        `<div class="tooltip-line" style="color:${C.innovation}">Innovations: ${d.innovationFte.toFixed(1)}</div>` +
+        `<div class="tooltip-line" style="color:${C.external}">External: ${d.externalFte.toFixed(1)}</div>` +
+        `<div class="tooltip-line" style="color:${C.textMuted}">Total: ${d.totalFte.toFixed(1)}</div>`;
+      document.getElementById('ttCap').textContent = `Capacity: ${d.fteCapacity} FTEs`;
+      tooltip.style.display = 'block';
+    });
+    rect.addEventListener('mousemove', e => {
+      tooltip.style.left = (e.clientX + 14) + 'px';
+      tooltip.style.top  = (e.clientY - 40) + 'px';
+    });
+    rect.addEventListener('mouseleave', () => { tooltip.style.display = 'none'; });
+  });
+}
+
+// ── Render ─────────────────────────────────────────────────────────────────
+function render() {
+  const budget = calcBudget();
+  const okr = calcOkr();
+  const monthly = calcMonthly();
+  const cap = getAvailableFte();
+  const overCapMonths = monthly.filter(d => d.totalFte > cap).map(d => d.month);
+  const selectedItem = state.items.find(i => i.id === state.selectedItem);
+
+  const typeColor = { project: C.project, innovation: C.innovation, external: C.external };
+  const statusColor = { committed: C.committed, pipeline: C.pipeline, cut: C.cut };
+  const typeLabels = { project:"Project", innovation:"Innovation", external:"External" };
+
+  function badge(color, label) {
+    return `<span class="badge" style="background:${color}22;color:${color};border:1px solid ${color}44">${label}</span>`;
+  }
+  function kpiColor() {
+    if (budget.remaining < 300) return C.danger;
+    if (budget.remaining < 600) return C.warning;
+    return C.accent;
+  }
+
+  // ── Table rows ──
+  const tableRows = state.items.map(item => `
+    <tr class="item-row${item.status==='cut'?' cut-item':''}${state.selectedItem===item.id?' selected':''}" data-id="${item.id}">
+      <td style="font-weight:500;max-width:220px">${item.name}</td>
+      <td>${badge(typeColor[item.type], typeLabels[item.type])}</td>
+      <td>
+        <select class="status-select" data-id="${item.id}"
+          style="color:${statusColor[item.status]};border:1px solid ${statusColor[item.status]}44">
+          <option value="committed" ${item.status==='committed'?'selected':''} style="background:#1a2028">Committed</option>
+          <option value="pipeline"  ${item.status==='pipeline' ?'selected':''} style="background:#1a2028">Pipeline</option>
+          <option value="cut"       ${item.status==='cut'      ?'selected':''} style="background:#1a2028">Cut</option>
+        </select>
+      </td>
+      <td class="mono">${item.xirCost}</td>
+      <td class="mono">${item.fteLoad}</td>
+      <td style="color:${C.textMuted}">${MONTHS[item.startMonth]}</td>
+      <td class="mono" style="color:${C.textMuted}">${item.duration}mo</td>
+      <td class="mono" style="color:${item.extRevenue?C.external:C.textDim}">${item.extRevenue||'—'}</td>
+      <td><button class="del-btn" data-del="${item.id}">×</button></td>
+    </tr>
+  `).join('');
+
+  // ── Inline edit ──
+  let editPanel = '';
+  if (selectedItem) {
+    const it = selectedItem;
+    editPanel = `
+      <div class="section edit-panel">
+        <div class="edit-header">
+          <div class="section-title" style="margin:0">Edit: ${it.name}</div>
+          <button class="close-btn" id="closeEdit">×</button>
+        </div>
+        <div class="edit-grid">
+          <div class="span2">
+            <label class="edit-lbl">Name</label>
+            <input class="edit-input" data-field="name" data-id="${it.id}" value="${it.name}"/>
+          </div>
+          <div>
+            <label class="edit-lbl">XIR ($K)</label>
+            <input class="edit-input" type="number" data-field="xirCost" data-id="${it.id}" value="${it.xirCost}"/>
+          </div>
+          <div>
+            <label class="edit-lbl">FTE Load</label>
+            <input class="edit-input" type="number" step="0.25" data-field="fteLoad" data-id="${it.id}" value="${it.fteLoad}"/>
+          </div>
+          <div>
+            <label class="edit-lbl">Start</label>
+            <select class="edit-input" data-field="startMonth" data-id="${it.id}">
+              ${MONTHS.map((m,i) => `<option value="${i}" ${it.startMonth===i?'selected':''}>${m}</option>`).join('')}
+            </select>
+          </div>
+          <div>
+            <label class="edit-lbl">Duration</label>
+            <input class="edit-input" type="number" min="1" max="12" data-field="duration" data-id="${it.id}" value="${it.duration}"/>
+          </div>
+          ${it.type==='external'?`
+          <div>
+            <label class="edit-lbl">Ext Revenue ($K)</label>
+            <input class="edit-input" type="number" data-field="extRevenue" data-id="${it.id}" value="${it.extRevenue}"/>
+          </div>`:''}
+        </div>
+      </div>`;
+  }
+
+  // ── Insight text ──
+  let insightHtml = '';
+  if (budget.remaining > 800) {
+    insightHtml = `<strong style="color:${C.accent}">Budget healthy</strong> — $${budget.remaining.toLocaleString()}K XIR remaining (${(100-budget.pct).toFixed(0)}% unspent). Room to take on more work.`;
+  } else if (budget.remaining > 400) {
+    insightHtml = `<strong style="color:${C.warning}">Budget moderate</strong> — $${budget.remaining.toLocaleString()}K XIR remaining. Be selective about new commitments.`;
+  } else if (budget.remaining >= 0) {
+    insightHtml = `<strong style="color:${C.danger}">Budget tight</strong> — only $${budget.remaining.toLocaleString()}K XIR remaining. Prioritize highest-impact work only.`;
+  } else {
+    insightHtml = `<strong style="color:${C.danger}">Over budget</strong> — $${Math.abs(budget.remaining).toLocaleString()}K XIR over limit. Cut or defer items to rebalance.`;
+  }
+  if (okr.extRev > 0) {
+    insightHtml += ` External revenue pipeline: <strong>$${okr.extRev.toLocaleString()}K</strong> of $2,500K target.`;
+  }
+  if (overCapMonths.length) {
+    insightHtml += ` <span style="color:${C.danger}">FTE over-allocation in ${overCapMonths.join(', ')} — exceeds ${cap} deployable FTEs.</span>`;
+  }
+
+  // ── Full HTML ──
+  document.getElementById('app').innerHTML = `
+    <div class="header">
+      <div class="header-row">
+        <div>
+          <h1>Capacity Simulator</h1>
+          <p class="subtitle">FY 2026 · ${MONTHS[CURRENT_MONTH]} onwards · ${state.totalFte} total FTEs (${cap} deployable)</p>
+        </div>
+        <div class="header-btns">
+          <button class="btn btn-ghost" id="btnLoadCSV" title="Load items from a CSV file">↑ Load CSV</button>
+          <button class="btn btn-ghost" id="btnSaveCSV" title="Save items to a CSV file">↓ Save CSV</button>
+          <button class="btn btn-ghost${state.showSettings?' active':''}" id="btnSettings">⚙ Settings</button>
+          <button class="btn btn-add" id="btnAdd">+ Add Item</button>
+        </div>
+      </div>
+    </div>
+
+    ${state.showSettings ? `
+    <div class="settings-panel">
+      <div class="section-title">Global Settings</div>
+      <div class="settings-row">
+        <div class="settings-field">
+          <label>XIR Budget ($K)</label>
+          <input type="number" id="setXirBudget" value="${state.xirBudget}"/>
+        </div>
+        <div class="settings-field">
+          <label>Total FTEs</label>
+          <input type="number" id="setTotalFte" value="${state.totalFte}"/>
+        </div>
+        <div class="settings-field">
+          <label>Mgmt / Overhead FTEs</label>
+          <input type="number" id="setMgmtFte" value="${state.managementOverhead}"/>
+        </div>
+      </div>
+    </div>` : ''}
+
+    <div class="toggles-panel">
+      <div class="toggle-wrap" id="togglePipeline">
+        <div class="toggle-track${state.includePipeline?' on':''}"><div class="toggle-thumb"></div></div>
+        <div>
+          <div class="toggle-label">Include Pipeline in Projections</div>
+          <div class="toggle-sub">${state.includePipeline
+            ? 'Showing committed + pipeline items'
+            : 'Showing committed only'}</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="kpi-row">
+      <div class="kpi-card${budget.remaining<300?' warn':''}">
+        <div class="kpi-label">XIR Remaining</div>
+        <div class="kpi-value" style="color:${kpiColor()}">$${budget.remaining.toLocaleString()}K</div>
+        <div class="kpi-sub">${(100-budget.pct).toFixed(0)}% of $${state.xirBudget.toLocaleString()}K</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Projects</div>
+        <div class="kpi-value" style="color:${C.project}">${okr.committedProjects}</div>
+        <div class="kpi-sub">+${okr.pipelineProjects} in pipeline</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Innovations</div>
+        <div class="kpi-value" style="color:${C.innovation}">${okr.committedInnovations}</div>
+        <div class="kpi-sub">+${okr.pipelineInnovations} in pipeline</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Ext Revenue</div>
+        <div class="kpi-value" style="color:${C.external}">$${okr.extRev}K</div>
+        <div class="kpi-sub">Target: $2,500K</div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="chart-header">
+        <div class="section-title">Monthly FTE Utilization</div>
+        <div class="chart-legend">
+          <span><span class="legend-dot" style="background:${C.project}"></span><span style="color:${C.textMuted}">Projects</span></span>
+          <span><span class="legend-dot" style="background:${C.innovation}"></span><span style="color:${C.textMuted}">Innovations</span></span>
+          <span><span class="legend-dot" style="background:${C.external}"></span><span style="color:${C.textMuted}">External</span></span>
+        </div>
+      </div>
+      <div class="chart-container" id="chartContainer"></div>
+      ${overCapMonths.length ? `<div class="overcap-banner">⚠ Over-capacity detected in ${overCapMonths.join(', ')}</div>` : ''}
+    </div>
+
+    <div class="section">
+      <div class="section-title">Work Items</div>
+      <div style="overflow-x:auto">
+        <table>
+          <thead>
+            <tr>
+              ${["Name","Type","Status","XIR ($K)","FTEs","Start","Duration","Ext Rev ($K)",""]
+                .map(h=>`<th>${h}</th>`).join('')}
+            </tr>
+          </thead>
+          <tbody>${tableRows}</tbody>
+        </table>
+      </div>
+    </div>
+
+    ${editPanel}
+
+    <div class="section insight-panel">
+      <div class="section-title insight-title">Scenario Insight</div>
+      <div class="insight-text">${insightHtml}</div>
+    </div>
+  `;
+
+  requestAnimationFrame(drawChart);
+
+  // ── Event listeners ──
+  document.getElementById('btnSettings').onclick = () => { state.showSettings = !state.showSettings; render(); };
+  document.getElementById('btnAdd').onclick = () => showModal();
+  document.getElementById('btnSaveCSV').onclick = exportCSV;
+  document.getElementById('btnLoadCSV').onclick = () => document.getElementById('csvFileInput').click();
+  document.getElementById('togglePipeline').onclick = () => { state.includePipeline = !state.includePipeline; render(); };
+
+  if (state.showSettings) {
+    document.getElementById('setXirBudget').onchange = e => { state.xirBudget = +e.target.value; render(); };
+    document.getElementById('setTotalFte').onchange  = e => { state.totalFte  = +e.target.value; render(); };
+    document.getElementById('setMgmtFte').onchange   = e => { state.managementOverhead = +e.target.value; render(); };
+  }
+
+  document.querySelectorAll('.item-row').forEach(row => {
+    row.onclick = () => {
+      const id = +row.getAttribute('data-id');
+      state.selectedItem = state.selectedItem === id ? null : id;
+      render();
+    };
+  });
+
+  document.querySelectorAll('.status-select').forEach(sel => {
+    sel.onclick = e => e.stopPropagation();
+    sel.onchange = e => {
+      e.stopPropagation();
+      const item = state.items.find(i => i.id === +sel.getAttribute('data-id'));
+      if (item) item.status = e.target.value;
+      render();
+    };
+  });
+
+  document.querySelectorAll('[data-del]').forEach(btn => {
+    btn.onclick = e => {
+      e.stopPropagation();
+      const id = +btn.getAttribute('data-del');
+      state.items = state.items.filter(i => i.id !== id);
+      if (state.selectedItem === id) state.selectedItem = null;
+      render();
+    };
+  });
+
+  if (selectedItem) {
+    document.getElementById('closeEdit').onclick = () => { state.selectedItem = null; render(); };
+    document.querySelectorAll('.edit-input[data-field]').forEach(inp => {
+      const handler = e => {
+        const item = state.items.find(i => i.id === +inp.getAttribute('data-id'));
+        if (!item) return;
+        const field = inp.getAttribute('data-field');
+        const numFields = ['xirCost','fteLoad','startMonth','duration','extRevenue'];
+        item[field] = numFields.includes(field) ? +e.target.value : e.target.value;
+        rerenderDerived();
+      };
+      inp.oninput = handler;
+      inp.onchange = handler;
+    });
+  }
+}
+
+// Light re-render: only updates KPIs, chart, insight without rebuilding the whole page
+function rerenderDerived() {
+  const budget = calcBudget();
+  const okr = calcOkr();
+  const monthly = calcMonthly();
+  const cap = getAvailableFte();
+  const overCapMonths = monthly.filter(d => d.totalFte > cap).map(d => d.month);
+
+  function kpiColor() {
+    if (budget.remaining < 300) return C.danger;
+    if (budget.remaining < 600) return C.warning;
+    return C.accent;
+  }
+  const kpis = document.querySelectorAll('.kpi-card');
+  if (kpis[0]) {
+    kpis[0].querySelector('.kpi-value').style.color = kpiColor();
+    kpis[0].querySelector('.kpi-value').textContent = `$${budget.remaining.toLocaleString()}K`;
+    kpis[0].querySelector('.kpi-sub').textContent = `${(100-budget.pct).toFixed(0)}% of $${state.xirBudget.toLocaleString()}K`;
+    kpis[0].classList.toggle('warn', budget.remaining < 300);
+  }
+  if (kpis[1]) {
+    kpis[1].querySelector('.kpi-value').textContent = `${okr.committedProjects}`;
+    kpis[1].querySelector('.kpi-sub').textContent = `+${okr.pipelineProjects} in pipeline`;
+  }
+  if (kpis[2]) {
+    kpis[2].querySelector('.kpi-value').textContent = `${okr.committedInnovations}`;
+    kpis[2].querySelector('.kpi-sub').textContent = `+${okr.pipelineInnovations} in pipeline`;
+  }
+  if (kpis[3]) {
+    kpis[3].querySelector('.kpi-value').textContent = `$${okr.extRev}K`;
+  }
+
+  requestAnimationFrame(drawChart);
+
+  const section = document.querySelector('#chartContainer')?.parentElement;
+  if (section) {
+    let banner = section.querySelector('.overcap-banner');
+    if (overCapMonths.length) {
+      if (!banner) { banner = document.createElement('div'); banner.className='overcap-banner'; section.appendChild(banner); }
+      banner.textContent = `⚠ Over-capacity detected in ${overCapMonths.join(', ')}`;
+    } else if (banner) { banner.remove(); }
+  }
+}
+
+// ── Modal ──────────────────────────────────────────────────────────────────
+function showModal() {
+  const root = document.getElementById('modalRoot');
+  const form = { name:'', type:'project', status:'pipeline', xirCost:60, fteLoad:0.5,
+                 startMonth:CURRENT_MONTH, duration:4, extRevenue:0 };
+
+  function renderModal() {
+    root.innerHTML = `
+      <div class="modal-overlay" id="modalOverlay">
+        <div class="modal-box">
+          <h3 class="modal-title">Add Work Item</h3>
+          <div class="modal-fields">
+            <div>
+              <label class="modal-label">Name</label>
+              <input class="modal-input" id="mName" value="${form.name}" placeholder="e.g. Deepwater Analytics"/>
+            </div>
+            <div class="modal-row">
+              <div class="modal-field">
+                <label class="modal-label">Type</label>
+                <select class="modal-input" id="mType">
+                  <option value="project"    ${form.type==='project'   ?'selected':''}>Project</option>
+                  <option value="innovation" ${form.type==='innovation'?'selected':''}>Innovation</option>
+                  <option value="external"   ${form.type==='external'  ?'selected':''}>External</option>
+                </select>
+              </div>
+              <div class="modal-field">
+                <label class="modal-label">Status</label>
+                <select class="modal-input" id="mStatus">
+                  <option value="committed" ${form.status==='committed'?'selected':''}>Committed</option>
+                  <option value="pipeline"  ${form.status==='pipeline' ?'selected':''}>Pipeline</option>
+                  <option value="cut"       ${form.status==='cut'      ?'selected':''}>Cut</option>
+                </select>
+              </div>
+            </div>
+            <div class="modal-row">
+              <div class="modal-field">
+                <label class="modal-label">XIR Cost ($K)</label>
+                <input class="modal-input" type="number" id="mXir" value="${form.xirCost}"/>
+              </div>
+              <div class="modal-field">
+                <label class="modal-label">FTE Load</label>
+                <input class="modal-input" type="number" step="0.25" id="mFte" value="${form.fteLoad}"/>
+              </div>
+            </div>
+            <div class="modal-row">
+              <div class="modal-field">
+                <label class="modal-label">Start Month</label>
+                <select class="modal-input" id="mStart">
+                  ${MONTHS.map((m,i)=>`<option value="${i}" ${form.startMonth===i?'selected':''}>${m}</option>`).join('')}
+                </select>
+              </div>
+              <div class="modal-field">
+                <label class="modal-label">Duration (months)</label>
+                <input class="modal-input" type="number" min="1" max="12" id="mDur" value="${form.duration}"/>
+              </div>
+            </div>
+            ${form.type==='external'?`
+            <div>
+              <label class="modal-label">External Revenue ($K)</label>
+              <input class="modal-input" type="number" id="mRev" value="${form.extRevenue}"/>
+            </div>`:''}
+          </div>
+          <div class="modal-footer">
+            <button class="btn-cancel" id="mCancel">Cancel</button>
+            <button class="btn-confirm" id="mConfirm">Add Item</button>
+          </div>
+        </div>
+      </div>`;
+
+    document.getElementById('modalOverlay').onclick = e => { if(e.target===e.currentTarget) closeModal(); };
+    document.getElementById('mCancel').onclick = closeModal;
+    document.getElementById('mType').onchange = e => { form.type = e.target.value; renderModal(); };
+    document.getElementById('mConfirm').onclick = () => {
+      form.name       = document.getElementById('mName').value.trim();
+      form.type       = document.getElementById('mType').value;
+      form.status     = document.getElementById('mStatus').value;
+      form.xirCost    = +document.getElementById('mXir').value;
+      form.fteLoad    = +document.getElementById('mFte').value;
+      form.startMonth = +document.getElementById('mStart').value;
+      form.duration   = +document.getElementById('mDur').value;
+      if (form.type==='external') form.extRevenue = +(document.getElementById('mRev')?.value||0);
+      if (!form.name) return;
+      state.items.push({ ...form, id: genId() });
+      closeModal();
+      render();
+    };
+  }
+
+  function closeModal() { root.innerHTML = ''; }
+  renderModal();
+}
+
+// ── CSV file input handler ─────────────────────────────────────────────────
+document.getElementById('csvFileInput').addEventListener('change', function() {
+  const file = this.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => { importCSV(e.target.result); };
+  reader.readAsText(file);
+  this.value = ''; // reset so same file can be reloaded
+});
+
+// ── Init ───────────────────────────────────────────────────────────────────
+render();
+window.addEventListener('resize', drawChart);
+</script>
+</body>
+</html>
