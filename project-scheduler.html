@@ -495,6 +495,24 @@
                     return { ...state, ui: { ...state.ui, resourceView: action.payload } };
                 case 'LOAD_SAMPLE_DATA':
                     return { ...state, projects: sampleProjects, people: samplePeople };
+                case 'IMPORT_PEOPLE': {
+                    const { people: newPeople, projectAssignments } = action.payload;
+                    // Clear all assignedPeople from projects, then re-apply from import
+                    let updatedProjects = state.projects.map(p => ({ ...p, assignedPeople: [] }));
+                    // Apply assignments from imported data
+                    const projectsByName = {};
+                    updatedProjects.forEach(p => { projectsByName[p.name] = p; });
+                    newPeople.forEach(person => {
+                        const assignments = projectAssignments[person.id] || [];
+                        assignments.forEach(pName => {
+                            const proj = projectsByName[pName];
+                            if (proj) {
+                                proj.assignedPeople = [...(proj.assignedPeople || []), { personId: person.id, fraction: person.capacity }];
+                            }
+                        });
+                    });
+                    return { ...state, people: newPeople, projects: updatedProjects };
+                }
                 default:
                     return state;
             }
@@ -1523,6 +1541,48 @@
         const ProjectListView = () => {
             const { state, dispatch } = useContext(AppContext);
             const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
+            const [editingNameId, setEditingNameId] = useState(null);
+            const [editingNameValue, setEditingNameValue] = useState('');
+            const [nameError, setNameError] = useState('');
+
+            const startNameEdit = (project) => {
+                setEditingNameId(project.id);
+                setEditingNameValue(project.name);
+                setNameError('');
+            };
+
+            const cancelNameEdit = () => {
+                setEditingNameId(null);
+                setEditingNameValue('');
+                setNameError('');
+            };
+
+            const saveNameEdit = () => {
+                const trimmed = editingNameValue.trim();
+                if (!trimmed) {
+                    setNameError('Name cannot be empty');
+                    return;
+                }
+                const duplicate = state.projects.some(p => p.id !== editingNameId && p.name.toLowerCase() === trimmed.toLowerCase());
+                if (duplicate) {
+                    setNameError('A project with this name already exists');
+                    return;
+                }
+                dispatch({ type: 'UPDATE_PROJECT', payload: { id: editingNameId, updates: { name: trimmed } } });
+                setEditingNameId(null);
+                setEditingNameValue('');
+                setNameError('');
+            };
+
+            const handleNameKeyDown = (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    saveNameEdit();
+                } else if (e.key === 'Escape') {
+                    e.preventDefault();
+                    cancelNameEdit();
+                }
+            };
 
             const filteredProjects = useMemo(() => {
                 let filtered = [...state.projects];
@@ -1662,12 +1722,29 @@
                                 {filteredProjects.map(project => (
                                     <tr key={project.id} className="border-b hover:bg-gray-50">
                                         <td className="px-4 py-2">
-                                            <button
-                                                onClick={() => dispatch({ type: 'SET_MODAL', payload: project.id })}
-                                                className="text-blue-600 hover:underline text-left"
-                                            >
-                                                {project.name}
-                                            </button>
+                                            {editingNameId === project.id ? (
+                                                <div>
+                                                    <input
+                                                        type="text"
+                                                        autoFocus
+                                                        value={editingNameValue}
+                                                        onChange={(e) => { setEditingNameValue(e.target.value); setNameError(''); }}
+                                                        onKeyDown={handleNameKeyDown}
+                                                        onBlur={saveNameEdit}
+                                                        className={`px-2 py-1 border rounded text-sm w-full ${nameError ? 'border-red-500' : 'border-blue-500'}`}
+                                                    />
+                                                    {nameError && <div className="text-xs text-red-600 mt-0.5">{nameError}</div>}
+                                                </div>
+                                            ) : (
+                                                <button
+                                                    onClick={() => startNameEdit(project)}
+                                                    onDoubleClick={() => dispatch({ type: 'SET_MODAL', payload: project.id })}
+                                                    className="text-blue-600 hover:underline text-left"
+                                                    title="Click to rename, double-click to open details"
+                                                >
+                                                    {project.name}
+                                                </button>
+                                            )}
                                         </td>
                                         <td className="px-4 py-2">{project.sponsor}</td>
                                         <td className="px-4 py-2">
@@ -1976,12 +2053,15 @@
         const RA_PROJECT_PALETTE = ['#4e79a7','#f28e2b','#e15759','#76b7b2','#59a14f','#edc948','#b07aa1','#ff9da7','#9c755f','#bab0ac'];
 
         // Person Heat-map Sub-view
-        const PersonHeatmapView = () => {
+        const PersonHeatmapView = ({ visibleStages }) => {
             const { state } = useContext(AppContext);
             const [hoveredCell, setHoveredCell] = useState(null); // { personId, week }
             const [collapsedRoles, setCollapsedRoles] = useState({});
             const people = state.people || [];
-            const projects = state.projects;
+            const projects = useMemo(() =>
+                state.projects.filter(p => visibleStages[p.stage]),
+                [state.projects, visibleStages]
+            );
 
             const ROLES = ['Data Scientist', 'Geoscientist', 'Project Manager'];
 
@@ -2255,33 +2335,33 @@
                             </button>
                         </div>
 
-                        {resourceView === 'byRole' && (
-                            <div className="flex flex-wrap items-center gap-3">
-                                <div className="flex flex-wrap gap-2">
-                                    {RA_STAGES.map(stage => {
-                                        const active = visibleStages[stage];
-                                        const hex = RA_STATUS_HEX[stage];
-                                        return (
-                                            <label
-                                                key={stage}
-                                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium cursor-pointer select-none border-2 transition-all duration-200"
-                                                style={active
-                                                    ? { backgroundColor: hex, borderColor: hex, color: 'white' }
-                                                    : { backgroundColor: 'white', borderColor: hex, color: hex }
-                                                }
-                                            >
-                                                <input
-                                                    type="checkbox"
-                                                    className="w-3.5 h-3.5 cursor-pointer"
-                                                    style={{ accentColor: active ? 'white' : hex }}
-                                                    checked={active}
-                                                    onChange={() => toggleStage(stage)}
-                                                />
-                                                {stage}
-                                            </label>
-                                        );
-                                    })}
-                                </div>
+                        <div className="flex flex-wrap items-center gap-3">
+                            <div className="flex flex-wrap gap-2">
+                                {RA_STAGES.map(stage => {
+                                    const active = visibleStages[stage];
+                                    const hex = RA_STATUS_HEX[stage];
+                                    return (
+                                        <label
+                                            key={stage}
+                                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium cursor-pointer select-none border-2 transition-all duration-200"
+                                            style={active
+                                                ? { backgroundColor: hex, borderColor: hex, color: 'white' }
+                                                : { backgroundColor: 'white', borderColor: hex, color: hex }
+                                            }
+                                        >
+                                            <input
+                                                type="checkbox"
+                                                className="w-3.5 h-3.5 cursor-pointer"
+                                                style={{ accentColor: active ? 'white' : hex }}
+                                                checked={active}
+                                                onChange={() => toggleStage(stage)}
+                                            />
+                                            {stage}
+                                        </label>
+                                    );
+                                })}
+                            </div>
+                            {resourceView === 'byRole' && (
                                 <div className="flex items-center gap-2">
                                     <label className="text-sm font-medium text-gray-600">Color By</label>
                                     <select
@@ -2293,8 +2373,8 @@
                                         <option value="project">Project Name</option>
                                     </select>
                                 </div>
-                            </div>
-                        )}
+                            )}
+                        </div>
                     </div>
 
                     {resourceView === 'byRole' ? (
@@ -2304,7 +2384,7 @@
                             <SimpleStackedChart {...getChartProps('pm', state.settings.capacity.projectManagers, 'Project Managers')} />
                         </>
                     ) : (
-                        <PersonHeatmapView />
+                        <PersonHeatmapView visibleStages={visibleStages} />
                     )}
                 </div>
             );
@@ -2776,6 +2856,160 @@
                 }
             };
 
+            const handleExportPeopleCSV = () => {
+                const headers = ['name', 'role', 'capacity', 'assigned_projects'];
+                const rows = people.map(person => {
+                    const assignedProjs = projects.filter(proj =>
+                        (proj.assignedPeople || []).some(a => a.personId === person.id)
+                    ).map(p => p.name).join('|');
+                    return [
+                        person.name,
+                        person.role,
+                        person.capacity,
+                        assignedProjs
+                    ];
+                });
+
+                const csvContent = [
+                    headers.map(h => `"${h}"`).join(','),
+                    ...rows.map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+                ].join('\n');
+
+                const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = `people-roster-${new Date().toISOString().split('T')[0]}.csv`;
+                link.click();
+                URL.revokeObjectURL(url);
+            };
+
+            const handleImportPeopleCSV = () => {
+                const input = document.createElement('input');
+                input.type = 'file';
+                input.accept = '.csv';
+                input.onchange = (e) => {
+                    const file = e.target.files[0];
+                    if (file) {
+                        const reader = new FileReader();
+                        reader.onload = (event) => {
+                            try {
+                                const csv = event.target.result;
+                                const lines = csv.split('\n').filter(line => line.trim());
+
+                                if (lines.length < 2) {
+                                    alert('People CSV file is empty or invalid');
+                                    return;
+                                }
+
+                                // Parse header
+                                const headers = lines[0].split(',').map(h => h.replace(/^"|"$/g, '').trim().toLowerCase());
+                                const requiredCols = ['name', 'role', 'capacity', 'assigned_projects'];
+                                const missingCols = requiredCols.filter(c => !headers.includes(c));
+                                if (missingCols.length > 0) {
+                                    alert('Missing required columns: ' + missingCols.join(', ') + '\n\nExpected columns: ' + requiredCols.join(', '));
+                                    return;
+                                }
+
+                                const colIdx = Object.fromEntries(requiredCols.map(c => [c, headers.indexOf(c)]));
+
+                                const errors = [];
+                                const warnings = [];
+                                const newPeople = [];
+                                const existingProjectNames = new Set(projects.map(p => p.name));
+
+                                for (let i = 1; i < lines.length; i++) {
+                                    // Parse CSV fields handling quoted values
+                                    const values = [];
+                                    let current = '';
+                                    let inQuotes = false;
+                                    for (let char of lines[i]) {
+                                        if (char === '"') {
+                                            inQuotes = !inQuotes;
+                                        } else if (char === ',' && !inQuotes) {
+                                            values.push(current.trim());
+                                            current = '';
+                                        } else {
+                                            current += char;
+                                        }
+                                    }
+                                    values.push(current.trim());
+
+                                    const name = values[colIdx.name]?.trim();
+                                    if (!name) {
+                                        errors.push(`Row ${i + 1}: Missing name, skipped`);
+                                        continue;
+                                    }
+
+                                    const role = values[colIdx.role]?.trim() || '';
+                                    const VALID_ROLES = ['Data Scientist', 'Geoscientist', 'Project Manager'];
+                                    if (!VALID_ROLES.includes(role)) {
+                                        errors.push(`Row ${i + 1} ("${name}"): Invalid role "${role}". Must be one of: ${VALID_ROLES.join(', ')}`);
+                                        continue;
+                                    }
+
+                                    let capacityStr = values[colIdx.capacity]?.trim() || '';
+                                    let capacity;
+                                    if (capacityStr.endsWith('%')) {
+                                        capacity = parseFloat(capacityStr) / 100;
+                                    } else {
+                                        capacity = parseFloat(capacityStr);
+                                    }
+                                    if (isNaN(capacity) || capacity < 0 || capacity > 1) {
+                                        errors.push(`Row ${i + 1} ("${name}"): Invalid capacity "${capacityStr}". Must be 0-1 (decimal) or 0%-100%`);
+                                        continue;
+                                    }
+
+                                    const assignedStr = values[colIdx.assigned_projects]?.trim() || '';
+                                    const assignedProjectNames = assignedStr ? assignedStr.split('|').map(s => s.trim()).filter(Boolean) : [];
+
+                                    // Warn about unrecognized project names
+                                    assignedProjectNames.forEach(pName => {
+                                        if (!existingProjectNames.has(pName)) {
+                                            warnings.push(`Row ${i + 1} ("${name}"): Project "${pName}" not found in current project list`);
+                                        }
+                                    });
+
+                                    newPeople.push({ name, role, capacity, id: generateId(), _assignedProjectNames: assignedProjectNames });
+                                }
+
+                                if (errors.length > 0 && newPeople.length === 0) {
+                                    alert('Import failed. All rows had errors:\n\n' + errors.join('\n'));
+                                    return;
+                                }
+
+                                let confirmMsg = `Import ${newPeople.length} people from CSV? This will replace all current people.`;
+                                if (errors.length > 0) {
+                                    confirmMsg += `\n\nErrors (${errors.length} rows skipped):\n` + errors.join('\n');
+                                }
+                                if (warnings.length > 0) {
+                                    confirmMsg += `\n\nWarnings:\n` + warnings.join('\n');
+                                }
+
+                                if (confirm(confirmMsg)) {
+                                    // Build clean people and project assignments map
+                                    const projectAssignments = {};
+                                    const cleanPeople = newPeople.map(person => {
+                                        const { _assignedProjectNames, ...personData } = person;
+                                        projectAssignments[person.id] = _assignedProjectNames;
+                                        return personData;
+                                    });
+
+                                    dispatch({
+                                        type: 'IMPORT_PEOPLE',
+                                        payload: { people: cleanPeople, projectAssignments }
+                                    });
+                                }
+                            } catch (error) {
+                                alert('Error importing People CSV: ' + error.message);
+                            }
+                        };
+                        reader.readAsText(file);
+                    }
+                };
+                input.click();
+            };
+
             const SortHeader = ({ label, k }) => (
                 <th
                     className="px-4 py-2 text-left cursor-pointer hover:bg-gray-100 whitespace-nowrap"
@@ -2813,12 +3047,27 @@
                                 </button>
                             ))}
                         </div>
-                        <button
-                            onClick={startAdd}
-                            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm"
-                        >
-                            + Add Person
-                        </button>
+                        <div className="flex items-center gap-2">
+                            <button
+                                onClick={startAdd}
+                                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm"
+                            >
+                                + Add Person
+                            </button>
+                            <div className="border-l border-gray-300 h-8 mx-1"></div>
+                            <button
+                                onClick={handleImportPeopleCSV}
+                                className="px-3 py-2 bg-teal-600 text-white rounded-md hover:bg-teal-700 text-sm"
+                            >
+                                Import People CSV
+                            </button>
+                            <button
+                                onClick={handleExportPeopleCSV}
+                                className="px-3 py-2 bg-teal-600 text-white rounded-md hover:bg-teal-700 text-sm"
+                            >
+                                Export People CSV
+                            </button>
+                        </div>
                     </div>
 
                     {/* Add new person inline form */}
